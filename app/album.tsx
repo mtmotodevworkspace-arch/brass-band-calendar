@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Video, ResizeMode } from 'expo-av';
+import { Video, ResizeMode, Audio } from 'expo-av';
 import * as ImageManipulator from 'expo-image-manipulator';
 
 export default function AlbumScreen() {
@@ -24,9 +24,21 @@ export default function AlbumScreen() {
   const [mangaPrompt, setMangaPrompt] = useState('');
   const [videoPrompt, setVideoPrompt] = useState('');
 
+  // 音声読み上げ用State
+  const [voicevoxUrl, setVoicevoxUrl] = useState('');
+  const [voicevoxApiKey, setVoicevoxApiKey] = useState('');
+  const [reading, setReading] = useState(false);
+  const [soundInstance, setSoundInstance] = useState<Audio.Sound | null>(null);
+
   useEffect(() => {
     async function loadConfigAndProfile() {
       try {
+        // VOICEVOX設定の読み込み
+        const savedUrl = await AsyncStorage.getItem('voicevox_api_url');
+        if (savedUrl) setVoicevoxUrl(savedUrl);
+        const savedKey = await AsyncStorage.getItem('voicevox_api_key');
+        if (savedKey) setVoicevoxApiKey(savedKey);
+
         const savedProfileRaw = await AsyncStorage.getItem('pet_profile');
         let parsedProfile = null;
         if (savedProfileRaw) {
@@ -107,6 +119,15 @@ export default function AlbumScreen() {
     loadConfigAndProfile();
   }, []);
 
+  // アンマウント時に音声を停止・クリアする
+  useEffect(() => {
+    return () => {
+      if (soundInstance) {
+        soundInstance.unloadAsync().catch(() => {});
+      }
+    };
+  }, [soundInstance]);
+
   const handleSaveStoryMode = async (mode: 'novel' | 'chat') => {
     setStoryMode(mode);
     await AsyncStorage.setItem('pet_story_mode', mode);
@@ -164,8 +185,8 @@ export default function AlbumScreen() {
     if (mockMode) {
       setLoading(true);
       setTimeout(async () => {
-        const mockFeelings = `【テスト分析】${profile?.name || 'うちのコ'}ちゃんは、あなたが左手に持っているおもちゃの「かすかな摩擦音」を耳をピクッとさせて聞きつけています。ただ喜んでいるのではなく、『これはいつものおやつが入る袋の音とは異なるが、間違いなく私の知的好奇心を刺激する音だ』と、瞳を輝かせて物理的解析を試みている真っ最中なのです🐾`;
-        const mockStory = `【テストストーリー】いつも優しい${profile?.owner_call || 'パパ'}へ🐾\n\nねえねえ、その手に持っているもの、なあに？カサカサって音がしたの、${profile?.pronoun || 'ボク'}ちゃんと聞き逃さなかったよ！おやつかな？それとも新しいおもちゃかな？\n好奇心で胸がいっぱいになって、思わずおめめがキラキラしちゃうんだ。何であれ、${profile?.owner_call || 'パパ'}が${profile?.pronoun || 'ボク'}ちゃんのために用意してくれた時間なら、それだけで世界一幸せな瞬間なんだよ🐾`;
+        const mockFeelings = `ねえねえ、その手に持っているもの、なあに？カサカサって音がしたの、${profile?.pronoun || 'ボク'}ちゃんちゃんと聞き逃さなかったよ！早く見せて！`;
+        const mockStory = `【テストストーリー】いつも優しい${profile?.owner_call || 'パパ'}へ🐾\n\nねえねえ、その手に持っているもの、なあに？カサカサって音がしたの、${profile?.pronoun || 'ボク'}ちゃんちゃんと聞き逃さなかったよ！おやつかな？それとも新しいおもちゃかな？\n好奇心で胸がいっぱいになって、思わずおめめがキラキラしちゃうんだ。何であれ、${profile?.owner_call || 'パパ'}が${profile?.pronoun || 'ボク'}ちゃんのために用意してくれた時間なら、それだけで世界一幸せな瞬間なんだよ🐾`;
         const mockManga = `Visual Profile: A lovely ${profile?.breed || 'dog'} with ${profile?.color || 'golden'} hair, wearing a cute pink collar. Looking intensely at the owner's hand with sparkling eyes.\n\n4-panel manga layout in a soft watercolor style:\nPanel 1: The pet sits on the rug, tilting its head as it hears a rustling sound.\nPanel 2: Close up on the pet's sparkling eyes and perked up ears, showing high curiosity. Include a speech bubble in Japanese saying "なんの音？🐾"\nPanel 3: The owner reveals a small new squeaky toy. The pet gets excited.\nPanel 4: The pet is happily playing with the toy next to the owner's legs. Speech bubble in Japanese: "${profile?.owner_call || 'パパ'}、大好き！🐾"`;
         const mockVideo = `A cinematic close-up video of a cute ${profile?.breed || 'dog'}, breathing softly and wagging its tail, looking with sparkling eyes at the owner. Soft warm sunbeams lighting, extremely natural motion, 4k resolution.`;
 
@@ -217,15 +238,16 @@ export default function AlbumScreen() {
         【最重要・思考プロセスと執筆の鉄則（必ずこの順番で思考し、出力に反映してください）】
         1. **視覚的特徴の超ディープな観察と感情分析**:
            - 画像に写っている${profile.name}ちゃんの「視線の向き」「耳の角度」「口元の緊張・弛緩や舌の状態」「尻尾の位置・ニュアンス」「姿勢（甘え、伏せ、探索、興奮など）」「背景にあるおもちゃやカーペット, 家具などのオブジェクト」を徹底的に読み取ってください。
-        2. **独自の心の声 (feelings) の抽出**:
-           - 上記で分析した具体的かつユニークな視覚的特徴（ディテール）とペット情報（性格等）のみをもとに、${profile.name}ちゃんの【本当の深層心理】を抽出します。
-           - ※※最重要※※ 思い出ストーリー（story）で創作・脚色されるドラマチックな展開やフィクションの内容に【絶対に引っ張られることなく】、あくまで登録されているペット情報（性格など）と写真のペットの状況（客観的な表情・姿勢）だけを冷静に分析・ブレンドし、その瞬間にペットが感じていた本当の深層心理・本音の心の声を出力してください。
-           - 「嬉しい」「眠い」「遊んで」などの単純で安直な一般化分類は【絶対に禁止】します。それをしてしまうと、毎回似たような心の声になってしまい飼い主様が飽きてしまいます。
-           - 例：「${profile.owner_call}がスマホを構える瞬間の手の動きから、これが特別な撮影だと理解し張りてポーズを作っている知性」「ラグの特定の繊維の匂いから独自の宇宙を感じ取っている超ディープな探索心」など、その写真特有の具体的かつリアルな心の声（日本語、150〜200文字）にしてください。
+        2. **独自の心の声 (feelings) の抽出（完全セリフ化）**:
+           - ※※最重要※※ 【客観的な解説や状況説明（例: 〜と考えています、〜と思っているようです、など）は絶対に一切排除】してください。これがあると、音声読み上げしたときに本人が喋っているように聞こえません。
+           - 最初から最後まで100% ${profile.name}ちゃんの一人称（${profile.pronoun}）を使用し、飼い主（${profile.owner_call}）に心の中で直接話しかけている、生き生きとした【セリフ（口語の独白・語りかけ文）】にしてください。
+           - VOICEVOXの読み間違いを防ぐため、難読漢字や特殊な送り仮名は避け、常用漢字のみを使って自然な漢字交じり文にしてください。また、特殊な固有名詞や「うちのコ」などの表記は避け、平仮名で「うちのこ」と書いてください。
+           - 読み上げた際のイントネーションを人間に近づけるため、読点「、」を細かく区切りすぎず、息継ぎをする自然な位置にのみ最小限配置してください。
+           - 分析した具体的かつユニークな視覚的特徴（ディテール）のみをもとに、その瞬間にペットが本当に話しかけているような、オリジナリティあふれるセリフ（日本語、100〜150文字程度）にしてください。
         3. **心の声をベースにした新鮮なストーリー (story) の構築**:
            - 上記でディープに分析した「心の声」と「基本情報」を入力とし、それをさらに膨らませた思い出ストーリーを執筆します。
            - 「ある晴れた日の午後、${profile.name}ちゃんはおやつをもらって喜びました」といった、使い回しのテンプレート的な展開は【完全厳禁】です。
-           - ある時は${profile.name}ちゃんが熱い情熱を語りかけるドラマ風、ある時は飼い主の行動パターンを冷静に分析する探偵小説風など、今回の「心の声」に最も合致するユニークな文体・切り口を毎回完全にゼロから新規に考案して執筆してください。作成するたびに「ああ、こう思っていたのかー！」と新しい発見と驚きを飼い主様に提供してください。
+           - ある時は${profile.name}ちゃんが熱い情熱を語りかけるドラマ風、ある時は飼い主の行動パターンを冷静に分析する探偵小説風など、今回抽出した「セリフ（心の声）」に最も合致するユニークな文体・切り口を毎回完全にゼロから新規に考案して執筆してください。作成するたびに「ああ、こう思っていたのかー！」と新しい発見と驚きを飼い主様に提供してください。
         4. **ト書きの排除**:
            - カッコ書きによる自分の物理的動作描写（「（しっぽをパタパタさせながら）」等）は【絶対に一切出力しないでください】。
 
@@ -240,8 +262,8 @@ export default function AlbumScreen() {
         ・一人称: 「${profile.pronoun}」
 
         【タスク】
-        1. ペットの気持ち分析 (feelings): 上記の鉄則に従い、思い出ストーリーの創作的な脚色や展開に【絶対に引っ張られることなく】、写真特有の視覚的ディテールとペット情報（性格など）のみからディープに読み解いた、その瞬間における本当の深層心理（本音の心の声）を執筆（日本語、150〜200文字程度）
-        2. ストーリー (story): 上記の鉄則に従い、ユニークに抽出された「心の声」に100%基づいた、毎回全く異なる新鮮で感動的（またはコミカル）な思い出ストーリー。 ${modePrompt}（日本語、250〜350文字程度）
+        1. ペットの気持ち分析 (feelings): 上記の鉄則に従い、解説を一切排除し、写真の表情・状況から読み解いた本音の気持ちを、飼い主（${profile.owner_call}）に直接語りかける一人称（${profile.pronoun}）の口語セリフとして執筆（日本語、100〜150文字程度。常用漢字を使い、読点「、」で細切れにしないこと）
+        2. ストーリー (story): 上記の鉄則に従い、ユニークに抽出された「心の声（セリフ）」に100%基づいた、毎回全く異なる新鮮で感動的（またはコミカル）な思い出ストーリー。 ${modePrompt}（日本語、250〜350文字程度）
         3. GPT用4コマ漫画生成プロンプト (manga_prompt): ChatGPT（DALL-E 3）向けの超詳細な4コマ漫画生成プロンプトを構築してください。
            - ※※最重要※※ 4コマ漫画は、アップロードされた写真の状況をそのままなぞったり模写したりするのではなく、作成した【思い出ストーリー (story) の内容と流れ】を最重視し、そのストーリーに基づいた『起・承・転・結』のドラマチックな展開を4コマ（Panel 1〜4）で美しく表現する構成にしてください。場面設定や描写は、写真の単純なコピーではなく、ストーリーの展開に沿ってよりドラマチックで豊かなビジュアル表現になるよう、各コマの状況を工夫して詳細に指示してください。
            - プロンプト記述自体は英語で構築しますが、吹き出し（speech bubbles / text labels）内のセリフは絶対に英語に翻訳せず、ペットの一人称や口調を忠実に反映した【日本語のテキスト（例: "ひらがな・漢字のセリフ"）】のまま指定するように強く指示してください。冒頭に【Visual Profile】を設定し、コマごとのセリフ指示を含めてください。
@@ -250,7 +272,7 @@ export default function AlbumScreen() {
         必ず以下のJSONスキーマに従ってJSONテキストのみを出力してください。余計な装飾は含めないでください。
 
         {
-            "feelings": "ペットの気持ちの執筆テキスト（日本語）",
+            "feelings": "ペットの一人称による飼い主への語りかけセリフそのもの（日本語。解説文や状況説明は禁止）",
             "story": "ストーリーの執筆テキスト（日本語。見出し記号は絶対に入れないこと）",
             "manga_prompt": "ChatGPTにそのままコピペして使用できる、吹き出しのセリフが日本語で指定された高品質な4コマ漫画用プロ仕様英語プロンプト",
             "video_prompt": "動画生成AIにそのまま貼り付けて、この思い出の一瞬を完璧に動かせる高品質な英語動画プロンプト"
@@ -391,6 +413,144 @@ export default function AlbumScreen() {
       Alert.alert('ストーリーのつむぎ出しに失敗しました🐾', friendlyMessage);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // 心の声の読み上げ処理
+  const handleReadFeelings = async () => {
+    if (soundInstance) {
+      // 再生中なら停止
+      try {
+        await soundInstance.stopAsync();
+        await soundInstance.unloadAsync();
+      } catch (e) {}
+      setSoundInstance(null);
+      setReading(false);
+      return;
+    }
+
+    const trimmedUrl = voicevoxUrl.trim();
+    if (!trimmedUrl) {
+      Alert.alert('設定未完了', 'VOICEVOXの接続URLが設定されていません。音声設定画面で設定してください🐾');
+      return;
+    }
+
+    setReading(true);
+    const isHuggingFace = trimmedUrl.includes('hf.space');
+    let soundObject: Audio.Sound | null = null;
+
+    try {
+      // ペットの基本ボイスID
+      let speakerId = profile?.gender === '女の子' ? 2 : 12;
+      let speed = 1.0;
+      let pitch = 0.0;
+      let intonation = 1.0;
+
+      if (profile?.voice_settings) {
+        speakerId = profile.voice_settings.speaker_id || speakerId;
+        speed = profile.voice_settings.speedScale ?? 1.0;
+        pitch = profile.voice_settings.pitchScale ?? 0.0;
+        intonation = profile.voice_settings.intonationScale ?? 1.0;
+      }
+
+      // 感情を豊かにするため抑揚を少し高めに
+      intonation = intonation * 1.15;
+
+      // 漢字交じりテキストを使用し、簡易置換を適用
+      let textToRead = (feelings || '').replace(/\n/g, ' ');
+      textToRead = textToRead.replace(/うちのコ/g, 'うちのこ');
+
+      if (!textToRead) {
+        throw new Error('読み上げるテキストがありません🐾');
+      }
+
+      // 1. audio_query の生成
+      const queryUrl = `${trimmedUrl}/audio_query?text=${encodeURIComponent(textToRead)}&speaker=${speakerId}`;
+      const controller = new AbortController();
+      const queryTimeout = isHuggingFace ? 90000 : 10000;
+      const timeoutId = setTimeout(() => controller.abort(), queryTimeout);
+
+      const headers: Record<string, string> = {};
+      if (voicevoxApiKey.trim()) {
+        headers['X-API-Key'] = voicevoxApiKey.trim();
+      }
+
+      const queryRes = await fetch(queryUrl, { 
+        method: 'POST',
+        signal: controller.signal,
+        headers
+      });
+      clearTimeout(timeoutId);
+
+      if (!queryRes.ok) {
+        throw new Error('音声クエリの生成に失敗しました。接続先URLやサーバーの起動状態をご確認ください。');
+      }
+
+      const queryJson = await queryRes.json();
+      queryJson.speedScale = speed;
+      queryJson.pitchScale = pitch;
+      queryJson.intonationScale = intonation;
+
+      // 2. 音声合成
+      const synthesisUrl = `${trimmedUrl}/synthesis?speaker=${speakerId}`;
+      const synthController = new AbortController();
+      const synthTimeout = isHuggingFace ? 90000 : 20000;
+      const synthTimeoutId = setTimeout(() => synthController.abort(), synthTimeout);
+
+      const synthRes = await fetch(synthesisUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...headers
+        },
+        body: JSON.stringify(queryJson),
+        signal: synthController.signal
+      });
+      clearTimeout(synthTimeoutId);
+
+      if (!synthRes.ok) {
+        throw new Error('音声合成に失敗しました。');
+      }
+
+      const blob = await synthRes.blob();
+      const base64Data = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
+        reader.onerror = () => reject(new Error('エンコードに失敗しました。'));
+        reader.readAsDataURL(blob);
+      });
+
+      const soundUri = `data:audio/wav;base64,${base64Data}`;
+      
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+        playThroughEarpieceAndroid: false,
+        staysActiveInBackground: false,
+      });
+
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: soundUri },
+        { shouldPlay: true }
+      );
+      soundObject = sound;
+      setSoundInstance(sound);
+
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (status.isLoaded && status.didJustFinish) {
+          sound.unloadAsync().catch(() => {});
+          setSoundInstance(null);
+          setReading(false);
+        }
+      });
+
+    } catch (err: any) {
+      console.warn(err);
+      const msg = err.name === 'AbortError'
+        ? '接続がタイムアウトしました。サーバーの起動状態をご確認ください🐾'
+        : (err.message || '再生に失敗しました🐾');
+      Alert.alert('朗読再生エラー', msg);
+      setReading(false);
     }
   };
 
@@ -588,6 +748,22 @@ export default function AlbumScreen() {
                 <View style={styles.textContainer}>
                   <Text style={styles.resultText}>{feelings}</Text>
                 </View>
+
+                {/* 🔊 朗読ボタン */}
+                <TouchableOpacity 
+                   style={[
+                     styles.readAloudBtn, 
+                     reading && styles.readAloudBtnActive
+                   ]}
+                   onPress={handleReadFeelings}
+                 >
+                   <Text style={[
+                     styles.readAloudBtnText,
+                     reading && styles.readAloudBtnTextActive
+                   ]}>
+                     {reading ? '🔇 読み上げを停止する' : '🔊 心の声を読み上げる'}
+                   </Text>
+                 </TouchableOpacity>
               </View>
             )}
 
@@ -1026,5 +1202,29 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: 'bold',
     marginBottom: 6,
+  },
+  readAloudBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFF0F2',
+    borderWidth: 1,
+    borderColor: '#FFD0D6',
+    borderRadius: 10,
+    paddingVertical: 10,
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  readAloudBtnActive: {
+    backgroundColor: '#C72C48',
+    borderColor: '#C72C48',
+  },
+  readAloudBtnText: {
+    color: '#C72C48',
+    fontWeight: 'bold',
+    fontSize: 13,
+  },
+  readAloudBtnTextActive: {
+    color: '#FFF',
   },
 });

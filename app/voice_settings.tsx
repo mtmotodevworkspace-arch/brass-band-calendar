@@ -207,9 +207,10 @@ export default function VoiceSettingsScreen() {
     let soundObject: Audio.Sound | null = null;
 
     try {
-      const callName = profile?.owner_call || 'パパ';
-      const petName = profile?.name || 'うちのコ';
-      const text = `はじめまして！${callName}。${petName}の声はこんな感じだよ。気に入ってくれたかな？`;
+      const isGirl = profile?.gender === '女の子';
+      const text = isGirl 
+        ? "ねぇねぇ、わたしの声、ちゃんと届いてる？ これからは、もっといっぱーいお話ししようね！ 大好き！"
+        : "おーい！ 聞こえる！？ ボクの声、ついに届いたんだね！ 早くお散歩いこう！ あ、あとオヤツも！";
 
       // 1. audio_query の生成
       const queryUrl = `${trimmedUrl}/audio_query?text=${encodeURIComponent(text)}&speaker=${selectedSpeaker}`;

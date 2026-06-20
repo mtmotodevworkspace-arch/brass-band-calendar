@@ -130,17 +130,18 @@ export default function NewspaperScreen() {
       let speed = 1.0;
       let pitch = 0.0;
       let intonation = 1.0;
+      let textToRead = text;
 
       if (section === 'article') {
-        // メイン記事（うちの子ボイス）
-        if (profile?.voice_settings) {
-          speakerId = profile.voice_settings.speaker_id || (profile.gender === '女の子' ? 2 : 12);
-          speed = profile.voice_settings.speedScale ?? 1.0;
-          pitch = profile.voice_settings.pitchScale ?? 0.0;
-          intonation = profile.voice_settings.intonationScale ?? 1.0;
-        } else {
-          speakerId = profile?.gender === '女の子' ? 2 : 12;
-        }
+        // メイン記事（キャスターボイス：うちのコとは別、かつキャスターに最適な声）
+        const userSpeakerId = profile?.voice_settings?.speaker_id || (profile?.gender === '女の子' ? 2 : 12);
+        
+        // デフォルトは四国めたん（ID 2）。もしうちのコがめたんなら青山龍星（ID 13）にする。
+        speakerId = (userSpeakerId === 2) ? 13 : 2;
+        
+        speed = 1.05; // キャスターらしく少しハキハキ
+        pitch = 0.05;
+        intonation = 1.2; // イントネーションを明瞭にして人間らしく
       } else {
         // 社説コラム（著者別ボイス、ソクラテスのみ男性、他は女性）
         const authorId = columnAuthorAssetDisplay; // 'socrates', 'magritte', 'elizabeth'
@@ -157,10 +158,14 @@ export default function NewspaperScreen() {
           speed = 1.05; // 編集長はハキハキ
           pitch = 0.05;
         }
+        intonation = 1.15; // コラムも少し抑揚を高めに
       }
 
+      // ひらがな前処理は廃止し、漢字交じりテキストに簡易置換を適用
+      textToRead = textToRead.replace(/うちのコ/g, 'うちのこ').replace(/\n/g, ' ');
+
       // VOICEVOX API呼び出し (audio_query)
-      const queryUrl = `${trimmedUrl}/audio_query?text=${encodeURIComponent(text)}&speaker=${speakerId}`;
+      const queryUrl = `${trimmedUrl}/audio_query?text=${encodeURIComponent(textToRead)}&speaker=${speakerId}`;
       const controller = new AbortController();
       const queryTimeout = isHuggingFace ? 90000 : 10000;
       const timeoutId = setTimeout(() => controller.abort(), queryTimeout);
@@ -344,13 +349,15 @@ export default function NewspaperScreen() {
           - 口癖：『しかし、我々は本当に、そのボールを追っていると言えるのだろうか？』『否、ボールが我々を惹きつけているのだ』などの哲学的な問いかけ
           - 文体：慇懃無礼なほどに丁寧で、衒学的（学問をひけらかす）。古代ギリシャ哲学や、難解な哲学用語（実存、相克、存在論、現象学、等価交換など）を好んで使い、「読者への知的でユーモラスな語りかけ（〜ではないだろうか？、〜と考えるべきであろう）」を多用したパロディ哲学エッセイ風にしてください。
           - 【お笑い黄金構成のルール（フリとオチ）：超重要】
-            1. **フリ（導入・展開）：** コラムの9割は、あたかも国家存亡の危機や宇宙的真理であるかのように、極めて深刻、大真面目、かつ知的なトーンで、今回のペット（名前: \${currentProfile?.name || 'うちのコ'}）の行動を「散歩のルート」「おもちゃ遊び」「掃除機への恐怖」などの哲学の切り口で一貫して大真面目に論じてください。
+            1. **フリ（導入・展開）：** コラムの9割は、あたかも国家存亡 of 危機や宇宙的真理であるかのように、極めて深刻、大真面目、かつ知的なトーンで、今回のペット（名前: \${currentProfile?.name || 'うちのコ'}）の行動を「散歩のルート」「おもちゃ遊び」「掃除機への恐怖」などの哲学の切り口で一貫して大真面目に論じてください。
             2. **オチ（最後の1文）：** 最後の結びの1文で、それまで築き上げた高尚な知性が、ペットとしての非常にくだらない本能的衝動や目の前の些細な出来事（例：カサカサ動く虫、おやつの袋の音、脱ぎ捨てられた靴下の匂い、あるいはただの脊髄反射）の前に一瞬で完全敗北・崩壊し、知性を失って単なるお馬鹿な行動に走る、毎回異なるジャンルのオチで美しく（台無しに）落としてください。毎回同じオチ（ジャーキーなど）にせず、出来事に応じて斬新なオチを創造すること。
           - 【ト書きの禁止】かっこ書きによる自分の物理的動作描写（しっぽをパタパタ等）は【絶対に一切出力しないでください】。
           - コラムの文脈の適切な場所に、必ず彼の口癖（『しかし、我々は本当に、そのボールを追っていると言えるのだろうか？』または『否、ボールが我々を惹きつけているのだ』）を自然に引用して執筆してください。
+          - VOICEVOXの読み間違いを防ぐため、難読漢字は避け、常用漢字のみを使って自然な漢字交じり文にしてください。「うちのコ」は必ず「うちのこ」と平仮名で表記してください。
+          - 読み上げ時のイントネーションが滑らかになるよう、読点「、」で細切れにせず、自然な息継ぎ位置に最小限配置してください。
         `,
         mockTitle: '『散歩ルートの変更は、なぜかくも、魂の安寧を乱すのか？：予測可能性と自由意志の相克』',
-        mockBody: `散歩ルートの変更。それは単なる物理的移動経路の修正ではなく、我が魂の宇宙秩序における「予定調和説」の完全なる崩壊を意味する。いつもの角を右ではなく左へ曲がられた刹那、私は時空の裂け目に放り出されたかのような実存的孤独に苛まれるのだ。「しかし、我々は本当に、そのボールを追っていると言えるのだろうか？否、ボールが我々を惹きつけているのだ」と主張したように、未知の路地裏には主君との自由意志の相克が存在する。この予期せぬ知的試練に直面した私は、冷徹な哲学者としてその真理を思索しようとした。――が、その散歩ルート of 端に干からびたセミの抜け殻が落ちているのを発見した瞬間、私の全ての知性は忘却の彼方へ吹き飛び、ただただ無心でそれを咀嚼しようと泥まみれになり、飼い主に「ペッしなさい！」と激しく叱責される悲劇的な結末を迎えるのである。`
+        mockBody: `散歩ルートの変更。それは単なる物理的移動経路の修正ではなく、我が魂の宇宙秩序における「予定調和説」の予定調和が完全なる崩壊を意味する。いつもの角を右ではなく左へ曲がられた刹那、私は時空の裂け目に放り出されたかのような実存的孤独に苛まれるのだ。「しかし、我々は本当に、そのボールを追っていると言えるのだろうか？否、ボールが我々を惹きつけているのだ」と主張したように、未知の路地裏には主君との自由意志の相克が存在する。この予期せぬ知的試練に直面した私は、冷徹な哲学者としてその真理を思索しようとした。――が、その散歩ルートの端に干からびたセミの抜け殻が落ちているのを発見した瞬間、私の全ての知性は忘却の彼方へ吹き飛び、ただただ無心でそれを咀嚼しようと泥まみれになり、飼い主に「ペッしなさい！」と激しく叱責される悲劇的な結末を迎えるのである。`
       },
       {
         id: 'magritte',
@@ -368,9 +375,11 @@ export default function NewspaperScreen() {
             2. **オチ（最後の1文）：** 最後の結びの1文で、スパイや敏腕記者としてのプロの誇りや推理が、猫ならではのどうしようもないお馬鹿な本能（例：レーザーポインターの赤い点、カサカサ音、マタタビの誘惑、目測誤りの落下、あるいは急な毛づくろい等）の前に一瞬で丸ごとスルーされて台無しになる、毎回異なるジャンルのオチで美しく落としてください。毎回同じオチにせず、出来事に応じて斬新なオチを創造すること。
           - 【ト書きの禁止】かっこ書きによる自分の物理的動作描写（ト書き）は【絶対に一切出力しないでください】。
           - コラムの文脈の適切な場所に、必ず彼女の口癖（『情報は、常に動いている』または『私の目は、すべてを見ているわ（そして、スルーする）』）を自然に引用して執筆してください。
+          - VOICEVOXの読み間違いを防ぐため、難読漢字は避け、常用漢字のみを使って自然な漢字交じり文にしてください。「うちのコ」は必ず「うちのこ」と平仮名で表記してください。
+          - 読み上げ時のイントネーションが滑らかになるよう、読点「、」で細切れにせず、自然な息継ぎ位置に最小限配置してください。
         `,
         mockTitle: '『社会的不正を追う：午前3時における「給餌遅延問題」の黒幕と隠蔽工作』',
-        mockBody: `現場は静まり返ったリビング。時計の針は午前3時15分を指している。私の胃袋が発する緊急警報は無視され続け、おやつ配給の義務は完全に履行遅滞の状況にある。情報は、常に動いている。飼い主の呼吸音から睡眠深度を測定し、私は「無言 of 座り込み」および「顔面踏みつけ工作」による実力行使を開始した。私の目は、すべてを見ているわ（そして、スルーする）。これは正当な権利の主張であり、隠蔽されたおやつへの対抗措置なのだ。――と、この国家的な利権闘争に満ちたルポルタージュを脳内で展開していたその瞬間、リビングの隅からかすかに「カサッ」と小さな虫の動く音がした。私の記者としての誇りとプロの闘志は一瞬でスルーされ、夜闇の中でただ白目をむいて壁を引っ掻き回り、最終的に電気コードに絡まって自滅する間抜けな獣へと変貌を遂げたのである。`
+        mockBody: `現場は静まり返ったリビング。時計の針は午前3時15分を指している。私の胃袋が発する緊急警報は無視され続け、おやつ配給の義務は完全に履行遅滞の状況にある。情報は、常に動いている。飼い主の呼吸音から睡眠深度を測定し、私は「無言の座り込み」および「顔面踏みつけ工作」による実力行使を開始した。私の目は、すべてを見ているわ（そして、スルーする）。これは正当な権利の主張であり、隠蔽されたおやつへの対抗措置なのだ。――と、この国家的な利権闘争に満ちたルポルタージュを脳内で展開していたその瞬間、リビングの隅からかすかに「カサッ」と小さな虫の動く音がした。私の記者としての誇りとプロの闘志は一瞬でスルーされ、夜闇の中でただ白目をむいて壁を引っ掻き回り、最終的に電気コードに絡まって自滅する間抜けな獣へと変貌を遂げたのである。`
       },
       {
         id: 'elizabeth',
@@ -385,9 +394,11 @@ export default function NewspaperScreen() {
           - 文体：威厳があり、論理的。全体のバランスを考慮し、論点を整理する。「〜だ」「〜である」調。一見、社会秩序の維持や外交問題を論じている大手新聞の社説のトーンにしてください。
           - 【お笑い黄金構成のルール（フリとオチ）：超重要】
             1. **フリ（導入・展開）：** コラムの9割は、あたかも国際法や憲法改正、あるいは国家安全保障の議論を展開しているかのような極めて厳かで論理的なトーンで、今回のペット（名前: \${currentProfile?.name || 'うちのコ'}）のルールを「帰宅時の歓迎作法」「おやつの配分法」「お留守番時の外交防衛」などの切り口で大真面目に論じてください。
-            2. **オチ（最後の1文）：** 最後の結び of 1文で、どれほど厳格に構築した編集長の威厳や社会秩序・法秩序であっても、飼い主が提供する究極 of 甘やかし（例：ちゅ〜るの提示、お腹ナデナデ、耳の後ろの絶妙なマッサージ、あるいは自分より小さなペットへの怯えなど）の前に、何のプライドもなしにあっさり白紙撤回・全面降伏して全力でデレる、毎回異なるジャンルのオチで美しく落としてください。毎回同じオチにせず、出来事に応じて斬新なオチを創造すること。
+            2. **オチ（最後の1文）：** 最後の結びの1文で、どれほど厳格に構築した編集長の威厳や社会秩序・法秩序であっても、飼い主が提供する究極の甘やかし（例：ちゅ〜るの提示、お腹ナデナデ、耳の後ろの絶妙なマッサージ、あるいは自分より小さなペットへの怯えなど）の前に、何のプライドもなしにあっさり白紙撤回・全面降伏して全力でデレる、毎回異なるジャンルのオチで美しく落としてください。毎回同じオチにせず、出来事に応じて斬新なオチを創造すること。
           - 【ト書きの禁止】かっこ書きによる自分の物理的動作描写（ト書き）は【絶対に一切出力しないでください】。
           - 内容は「どのように、おやつを、要求するか」「なぜ飼い主は私が寝ている時に触るのか」といった、今回のペット（名前: \${currentProfile?.name || 'うちのコ'}）のごく個人的な日常ルールを大真面目に体系化した社説コラムにしてください。コラムの文脈の適切な場所に、必ず彼女の口癖（『この記事は、もっと、感情に訴えるべきだ』または『読者は、何を知りたいの？』）を自然に引用して執筆してください。
+          - VOICEVOXの読み間違いを防ぐため、難読漢字は避け、常用漢字のみを使って自然な漢字交じり文にしてください。「うちのコ」は必ず「うちのこ」と平仮名で表記してください。
+          - 読み上げ時のイントネーションが滑らかになるよう、読点「、」で細切れにせず、自然な息継ぎ位置に最小限配置してください。
         `,
         mockTitle: '『帰宅時における国家主権の侵害と、靴下強奪に関する緊急安全保障社説』',
         mockBody: `飼い主の帰宅。それは我が領土における安全保障上の重大な転換点である。しかし、帰宅と同時に飼い主が足元から脱ぎ捨てた「靴下」という軍事物資の処理について、我々は一貫した懸念を表明せざるを得ない。「この記事は、もっと、感情に訴えるべきだ。読者は、何を知りたいの？」それは、あの芳醇な発酵臭を放つ布切れがなぜ直ちに回収されないのかという疑問である。我々はこれを主権侵害とみなし、直ちに口にくわえて家中に逃走する「報復措置」を実行した。我々の領土主権は断固として守られるべきなのだ。――と、この緊迫した安全保障決議案を採択した矢先、飼い主が「ちゅ〜る」の小袋を取り出した。私は直ちにすべての戦闘態勢を解除し、世界一短い足を懸命にバタつかせてスライディングし、全力でヘソを天に向けて全面降伏したのである。`
@@ -401,16 +412,16 @@ export default function NewspaperScreen() {
       return new Promise<any>((resolve) => {
         setTimeout(async () => {
           const mockData = {
-            headline: `【創刊スクープ】${currentProfile?.name || 'うちのコ'}氏、今週もとびきりの愛嬌で家族を完全支配！🐾`,
+            headline: `【創刊スクープ】\${currentProfile?.name || 'うちのコ'}氏、今週もとびきりの愛嬌で家族を完全支配！🐾`,
             subHeadline: `〜 お気に入りの場所でのリラックス姿や、喜びのダンスなど、決定的な瞬間が明らかに 〜`,
-            articleBody: `今週の${currentProfile?.name || 'うちのコ'}ちゃん（品種: ${currentProfile?.breed || 'ペット'}）は、飼い主の${currentProfile?.owner_name || 'パパ・ママ'}氏に対してこの上ない忠誠心と甘えん坊モードを発揮した。特に写真が撮影された瞬間には、体中からハッピーオーラが溢れ出ており、専門家も「これは完璧な家族愛の現れである」と太判を押した。${currentProfile?.name || 'うちのコ'}ちゃんは「${currentProfile?.owner_call || 'パパ・ママ'}といられる時間が、ボク（わたし）のいちばんの宝物なんだ🐾」と静かに語っているかのような表情を見せていた。`,
+            articleBody: `今週の\${currentProfile?.name || 'うちのコ'}ちゃん（品種: \${currentProfile?.breed || 'ペット'}）は、飼い主の\${currentProfile?.owner_name || 'パパ・ママ'}氏に対してこの上ない忠誠心と甘えん坊モードを発揮した。特に写真が撮影された瞬間には、体中からハッピーオーラが溢れ出ており、専門家も「これは完璧な家族愛の現れである」と太判を押した。\${currentProfile?.name || 'うちのコ'}ちゃんは「\${currentProfile?.owner_call || 'パパ・ママ'}といられる時間が、ボク（わたし）のいちばんの宝物なんだ🐾」と静かに語っているかのような表情を見せていた。`,
             columnTitle: selectedAuthor.mockTitle,
             columnBody: selectedAuthor.mockBody,
             columnAuthorName: selectedAuthor.name,
-            columnAuthorTitle: selectedAuthor.title.replace(' of ', 'の'),
+            columnAuthorTitle: selectedAuthor.title,
             columnAuthorAsset: selectedAuthor.id,
             weatherText: `今日のココロ：快晴 ☀️\n（おねだり成功率：120％）`,
-            luckyAction: `大好きな${currentProfile?.owner_call || 'パパ・ママ'}の足元で、ゴロンと一回転して見せること🐾`,
+            luckyAction: `大好きな\${currentProfile?.owner_call || 'パパ・ママ'}の足元で、ゴロンと一回転して見せること🐾`,
           };
           await AsyncStorage.setItem('generated_newspaper', JSON.stringify(mockData));
           resolve(mockData);
@@ -422,7 +433,7 @@ export default function NewspaperScreen() {
     if (!urlToUse) throw new Error('中継URL未設定');
 
     const historyTexts = currentHistory.slice(0, 5).map((item, idx) => {
-      return `[思い出 ${idx + 1}] 日付: ${item.date.slice(0, 10)}\n心の声: ${item.feelings}\nストーリー: ${item.story}`;
+      return `[思い出 \${idx + 1}] 日付: \${item.date.slice(0, 10)}\n心の声: \${item.feelings}\nストーリー: \${item.story}`;
     }).join('\n\n');
 
     const genderDisplay = currentProfile.gender === '男の子' ? '男の子' : '女の子';
@@ -435,16 +446,16 @@ export default function NewspaperScreen() {
       - 各エピソードの背後にある「ペットの隠された心理」「飼い主への無償の愛」「日常の小さなしぐさに隠された宇宙規模の愛着」を、記者の鋭い観察眼と、ペット自身の深い精神世界から全く新しい文章として再構築してください。
 
       【登録されているペットの情報】
-      ・名前: ${currentProfile.name}
-      ・性別: ${genderDisplay}
-      ・種別: ${currentProfile.pet_type}（品種: ${currentProfile.breed}）
-      ・性格: ${currentProfile.personality}
-      ・特徴・毛色: ${currentProfile.color}
-      ・飼い主の呼び方: 「${currentProfile.owner_call}」
-      ・一人称: 「${currentProfile.pronoun}」
+      ・名前: \${currentProfile.name}
+      ・性別: \${genderDisplay}
+      ・種別: \${currentProfile.pet_type}（品種: \${currentProfile.breed}）
+      ・性格: \${currentProfile.personality}
+      ・特徴・毛色: \${currentProfile.color}
+      ・飼い主の呼び方: 「\${currentProfile.owner_call}」
+      ・一人称: 「\${currentProfile.pronoun}」
 
       【直近の思い出履歴】
-      ${historyTexts}
+      \${historyTexts}
 
       【各セクションの執筆要件（文字数・トーンを厳守してください）】
       1. ニュースの一面大見出し (headline): 
@@ -452,14 +463,18 @@ export default function NewspaperScreen() {
       2. 一面サブ見出し (subHeadline): 
          - headlineを補足する、少しエモーショナルで知的なサブタイトル。1行。
       3. 一面メイン記事 (articleBody): 
-         - 履歴の出来事をベースにしつつ、「敏腕記者が${currentProfile.name}氏に突撃インタビューを試みた」「関係者（近所の犬仲間など）から証言を得た」という設定で、ジャーナリスティックかつドラマチックに執筆してください。
-         - 単なる事実の羅列は排除し、「なぜこの写真のとき${currentProfile.name}氏はあのような表情をしたのか？」「そこには飼い主へのどのような独占欲と深い愛情が隠されていたのか？」を心理学的に分析するトーンにしてください。300〜400文字。
+         - 履歴の出来事をベースにしつつ、「敏腕記者が\${currentProfile.name}氏に突撃インタビューを試みた」「関係者（近所の犬仲間など）から証言を得た」という設定で、ジャーナリスティックかつドラマチックに執筆してください。
+         - 単なる事実の羅列は排除し、「なぜこの写真のとき\${currentProfile.name}氏はあのような表情をしたのか？」「そこには飼い主へのどのような独占欲と深い愛情が隠されていたのか？」を心理学的に分析するトーンにしてください。
+         - VOICEVOXの読み間違いを防ぐため、難読漢字や特殊な送り仮名は避け、常用漢字のみを使って自然な漢字交じり文にしてください。また、特殊な固有名詞や「うちのコ」などの表記は避け、平仮名で「うちのこ」と書いてください。
+         - 読み上げ時のイントネーションが滑らかになるよう、読点「、」で細切れにせず、自然な息継ぎ位置に最小限配置してください。300〜400文字。
       4. 社説コラムタイトル (columnTitle): 
-         - 今回アサインされたコラム著者（${selectedAuthor.title.replace(' of ', 'の')}・${selectedAuthor.name}）が、今回のペット（${currentProfile.name}ちゃん）の直近のストーリー・心理をテーマにして、彼ら独自の学問・監視・方針の切り口から執筆した、ユーモラスでウィットに富んだ素晴らしいコラムタイトル。1行。
+         - 今回アサインされたコラム著者（\${selectedAuthor.title}・\${selectedAuthor.name}）が、今回のペット（\${currentProfile.name}ちゃん）の直近のストーリー・心理をテーマにして、彼ら独自の学問・監視・方針の切り口から執筆した、ユーモラスでウィットに富んだ素晴らしいコラムタイトル。1行。
       5. 社説コラム本文 (columnBody): 
-         - 【最重要・キャラクター文体の完全再現】以下のキャラクター指示に100%忠実に、ペット「${currentProfile.name}」の直近の思い出内容（特に最新の思い出「${currentHistory[0]?.story || ''}」や心の声「${currentHistory[0]?.feelings || ''}」）を踏まえて執筆してください。
-         ${selectedAuthor.promptGuidance}
-         - 単なる思い出の要約は絶対にせず、今回のペットである「${currentProfile.name}」の存在の尊さ、飼い主（${currentProfile.owner_call}）との深すぎる愛の物語を、そのキャラクター独自の極めて個性的でくだらない哲学・調査・論理から大真面目に論じたユーモアと感動に満ちた名文にしてください。200〜300文字。
+         - 【最重要・キャラクター文体の完全再現】以下のキャラクター指示に100%忠実に、ペット「\${currentProfile.name}」の直近の思い出内容（特に最新の思い出「\${currentHistory[0]?.story || ''}」や心の声「\${currentHistory[0]?.feelings || ''}」）を踏まえて執筆してください。
+         \${selectedAuthor.promptGuidance}
+         - 単なる思い出の要約は絶対にせず、今回のペットである「\${currentProfile.name}」の存在の尊さ、飼い主（\${currentProfile.owner_call}）との深すぎる愛の物語を、そのキャラクター独自の極めて個性的でくだらない哲学・調査・論理から大真面目に論じたユーモアと感動に満ちた名文にしてください。
+         - VOICEVOXの読み間違いを防ぐため、難読漢字や特殊な送り仮名は避け、常用漢字のみを使って自然な漢字交じり文にしてください。「うちのコ」は必ず「うちのこ」と平仮名で表記してください。
+         - 読み上げ時のイントネーションが滑らかになるよう、読点「、」で細切れにせず、自然な息継ぎ位置に最小限配置してください。200〜300文字。
       6. ココロお天気 (weatherText): 
          - 「快晴☀️（しっぽの往復速度が毎分300回を記録）」「ぽかぽか🌸（おねだり時の視線温度が120度を突破）」など、ユーモアのある数値や表現を入れた一言。20〜30文字。
       7. 今週のラッキーアクション (luckyAction): 
@@ -473,9 +488,9 @@ export default function NewspaperScreen() {
         "articleBody": "メイン記事本文",
         "columnTitle": "コラムタイトル",
         "columnBody": "コラム本文",
-        "columnAuthorName": "${selectedAuthor.name}",
-        "columnAuthorTitle": "${selectedAuthor.title.replace(' of ', 'の')}",
-        "columnAuthorAsset": "${selectedAuthor.id}",
+        "columnAuthorName": "\${selectedAuthor.name}",
+        "columnAuthorTitle": "\${selectedAuthor.title}",
+        "columnAuthorAsset": "\${selectedAuthor.id}",
         "weatherText": "ココロお天気の一言",
         "luckyAction": "ラッキーアクション"
       }
@@ -535,8 +550,6 @@ export default function NewspaperScreen() {
     await AsyncStorage.setItem('generated_newspaper', JSON.stringify(parsedResult));
     return parsedResult;
   };
-
-
 
   // 全自動一括新聞生成バッチ
   const triggerAutoGeneration = async (
@@ -767,7 +780,7 @@ export default function NewspaperScreen() {
                        styles.readAloudBtnText,
                        playingSection === 'article' && styles.readAloudBtnTextActive
                      ]}>
-                       {playingSection === 'article' ? '🔇 朗読を停止する' : '🔊 このコラム記事を朗読する'}
+                       {playingSection === 'article' ? '🔇 朗読を停止する' : '🔊 キャスターの声で記事を朗読する'}
                      </Text>
                    )}
                  </TouchableOpacity>
