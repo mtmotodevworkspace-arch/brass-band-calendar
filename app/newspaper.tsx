@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Video, ResizeMode, Audio } from 'expo-av';
 import * as ImagePicker from 'expo-image-picker';
+import { Paths, File } from 'expo-file-system';
 
 interface HistoryItem {
   id: string;
@@ -212,8 +213,10 @@ export default function NewspaperScreen() {
         reader.readAsDataURL(blob);
       });
 
-      const soundUri = `data:audio/wav;base64,${base64Data}`;
-      
+      // Androidでの再生エラーを回避するため、一時ファイルに保存して再生 (expo-file-system v19 API)
+      const tempFile = new File(Paths.cache, 'temp-voice.wav');
+      tempFile.write(base64Data, { encoding: 'base64' });
+
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: false,
         playsInSilentModeIOS: true,
@@ -222,7 +225,7 @@ export default function NewspaperScreen() {
       });
 
       const { sound } = await Audio.Sound.createAsync(
-        { uri: soundUri },
+        { uri: tempFile.uri },
         { shouldPlay: true }
       );
       setSoundInstance(sound);

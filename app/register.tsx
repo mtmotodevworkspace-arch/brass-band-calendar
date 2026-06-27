@@ -4,6 +4,8 @@ import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
+
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -37,16 +39,29 @@ export default function RegisterScreen() {
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.7,
-      base64: true,
+      quality: 0.8,
     });
     if (!result.canceled && result.assets && result.assets[0]) {
-      setAvatarUri(result.assets[0].uri);
-      if (result.assets[0].base64) {
-        setAvatarBase64(result.assets[0].base64);
+      const selectedUri = result.assets[0].uri;
+      setAvatarUri(selectedUri);
+      try {
+        const manipResult = await ImageManipulator.manipulateAsync(
+          selectedUri,
+          [{ resize: { width: 300, height: 300 } }], // アバターサイズに縮小して極めて軽量にする
+          { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG, base64: true }
+        );
+        if (manipResult.base64) {
+          setAvatarBase64(manipResult.base64);
+        }
+      } catch (err) {
+        console.error('アバター画像圧縮エラー:', err);
+        // フォールバックとして元のbase64設定を試みる（もしImagePickerが返していた場合）
+        if (result.assets[0].base64) {
+          setAvatarBase64(result.assets[0].base64);
+        }
       }
     }
   };
