@@ -1,20 +1,20 @@
 /**
  * 吹奏楽専用カレンダー Smartphone App Main Logic (mobile-app.js)
- * View-Only Mode (閲覧専用) & Admin Mode (管理者用) Separation + Rich Timetable YouTube Links + "先生" Removal
+ * View-Only Mode & Admin Mode + Cache-Buster & "先生" Aggressive Sanitizer
  */
 
 import { INITIAL_PRACTICE_DATA, MASTER_REPERTOIRE } from './sample-data.js';
 
-// Shared Storage Keys with PC version
-const PERMANENT_STORAGE_KEY_PRACTICES = 'brass_band_calendar_practices_permanent';
-const PERMANENT_STORAGE_KEY_REPERTOIRE = 'brass_band_calendar_repertoire_permanent';
+// Shared Storage Keys with PC version (Bumped to v7 for immediate cache invalidation)
+const PERMANENT_STORAGE_KEY_PRACTICES = 'brass_band_calendar_practices_v7';
+const PERMANENT_STORAGE_KEY_REPERTOIRE = 'brass_band_calendar_repertoire_v7';
 const ADMIN_MODE_STORAGE_KEY = 'brass_band_calendar_is_admin';
 
 // Global State
 let practices = [];
 let repertoire = [];
 let currentDate = new Date();
-let currentView = 'month'; // 'month' | 'day' | 'timetable' | 'repertoire'
+let currentView = 'month';
 let selectedCategory = 'all';
 let selectedDateForMobileSheet = null;
 let isAdminMode = false;
@@ -26,9 +26,6 @@ document.addEventListener('DOMContentLoaded', () => {
   renderMobile();
 });
 
-/* ==========================================================================
-   Admin / View-Only Mode Engine
-   ========================================================================== */
 function checkAdminMode() {
   const urlParams = new URLSearchParams(window.location.search);
   if (urlParams.get('admin') === '1') {
@@ -44,15 +41,12 @@ function updateAdminModeUi() {
   const badge = document.getElementById('mAdminModeBadge');
   if (badge) {
     if (isAdminMode) {
-      badge.innerHTML = `🔑 <span style="color:#fef08a;">管理者モード (全編集権限)</span>`;
-      badge.className = 'm-admin-badge active';
+      badge.innerHTML = `🔑 <span style="color:#fef08a;">管理者モード (編集可)</span>`;
     } else {
-      badge.innerHTML = `👁️ <span style="color:#cbd5e1;">閲覧専用モード (配布・団員向け)</span>`;
-      badge.className = 'm-admin-badge';
+      badge.innerHTML = `👁️ <span style="color:#cbd5e1;">閲覧専用モード</span>`;
     }
   }
 
-  // Toggle visibility of admin-only edit controls
   document.querySelectorAll('.admin-only').forEach(el => {
     el.style.display = isAdminMode ? '' : 'none';
   });
@@ -60,7 +54,7 @@ function updateAdminModeUi() {
 
 function promptAdminLogin() {
   if (isAdminMode) {
-    if (confirm('管理者モードを終了し、閲覧専用モード（配布用表示）に戻しますか？')) {
+    if (confirm('管理者モードを終了し、閲覧専用モード（団員配布用）に戻しますか？')) {
       isAdminMode = false;
       localStorage.setItem(ADMIN_MODE_STORAGE_KEY, 'false');
       updateAdminModeUi();
@@ -71,7 +65,7 @@ function promptAdminLogin() {
     if (code === '1234' || code === 'admin') {
       isAdminMode = true;
       localStorage.setItem(ADMIN_MODE_STORAGE_KEY, 'true');
-      alert('管理者モードに切り替わりました。練習予定や曲目の追加・編集が可能です。');
+      alert('管理者モードにログインしました。編集権限が有効です。');
       updateAdminModeUi();
       renderMobile();
     } else if (code !== null) {
@@ -80,81 +74,39 @@ function promptAdminLogin() {
   }
 }
 
-/* ==========================================================================
-   Storage Engine & "先生" Title Removal Sanitizer
-   ========================================================================== */
 function initStorage() {
   let loadedPractices = null;
   let loadedRepertoire = null;
 
-  const practiceKeys = [
-    PERMANENT_STORAGE_KEY_PRACTICES,
-    'brass_band_calendar_practices_v5',
-    'brass_band_calendar_practices_v4',
-    'brass_band_calendar_practices_v3',
-    'brass_band_calendar_practices_v2',
-    'brass_band_calendar_practices_v1',
-    'brass_band_calendar_practices'
-  ];
+  try {
+    const pData = localStorage.getItem(PERMANENT_STORAGE_KEY_PRACTICES);
+    if (pData) loadedPractices = JSON.parse(pData);
 
-  for (const key of practiceKeys) {
-    try {
-      const data = localStorage.getItem(key);
-      if (data) {
-        const parsed = JSON.parse(data);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          loadedPractices = parsed;
-          break;
-        }
-      }
-    } catch (e) {}
-  }
-
-  const repertoireKeys = [
-    PERMANENT_STORAGE_KEY_REPERTOIRE,
-    'brass_band_calendar_repertoire_v5',
-    'brass_band_calendar_repertoire_v4',
-    'brass_band_calendar_repertoire_v3',
-    'brass_band_calendar_repertoire_v2',
-    'brass_band_calendar_repertoire_v1',
-    'brass_band_calendar_repertoire'
-  ];
-
-  for (const key of repertoireKeys) {
-    try {
-      const data = localStorage.getItem(key);
-      if (data) {
-        const parsed = JSON.parse(data);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          loadedRepertoire = parsed;
-          break;
-        }
-      }
-    } catch (e) {}
-  }
+    const rData = localStorage.getItem(PERMANENT_STORAGE_KEY_REPERTOIRE);
+    if (rData) loadedRepertoire = JSON.parse(rData);
+  } catch (e) {}
 
   practices = loadedPractices || JSON.parse(JSON.stringify(INITIAL_PRACTICE_DATA));
   repertoire = loadedRepertoire || JSON.parse(JSON.stringify(MASTER_REPERTOIRE));
 
-  // Sanitize data: Remove all "先生" suffixes from conductors
-  sanitizeConductorNames();
+  sanitizeAllConductorNames();
   saveToStorage();
 }
 
-function sanitizeConductorNames() {
-  const cleanConductor = (str) => {
+function sanitizeAllConductorNames() {
+  const cleanStr = (str) => {
     if (!str) return '';
     return str.replace(/\s*先生/g, '').trim();
   };
 
   repertoire.forEach(s => {
-    if (s.conductor) s.conductor = cleanConductor(s.conductor);
+    if (s.conductor) s.conductor = cleanStr(s.conductor);
   });
 
   practices.forEach(p => {
-    if (p.conductors) p.conductors = cleanConductor(p.conductors);
+    if (p.conductors) p.conductors = cleanStr(p.conductors);
     (p.pieces || []).forEach(pc => {
-      if (pc.conductor) pc.conductor = cleanConductor(pc.conductor);
+      if (pc.conductor) pc.conductor = cleanStr(pc.conductor);
     });
   });
 }
@@ -163,21 +115,14 @@ function saveToStorage() {
   try {
     localStorage.setItem(PERMANENT_STORAGE_KEY_PRACTICES, JSON.stringify(practices));
     localStorage.setItem(PERMANENT_STORAGE_KEY_REPERTOIRE, JSON.stringify(repertoire));
-
-    ['v5', 'v4', 'v3'].forEach(v => {
-      localStorage.setItem(`brass_band_calendar_practices_${v}`, JSON.stringify(practices));
-      localStorage.setItem(`brass_band_calendar_repertoire_${v}`, JSON.stringify(repertoire));
-    });
+    localStorage.setItem('brass_band_calendar_practices_permanent', JSON.stringify(practices));
+    localStorage.setItem('brass_band_calendar_repertoire_permanent', JSON.stringify(repertoire));
   } catch (e) {
     console.error('Mobile save error:', e);
   }
 }
 
-/* ==========================================================================
-   Mobile Event Listeners
-   ========================================================================== */
 function setupMobileEventListeners() {
-  // Quick Date Navigation
   document.getElementById('mBtnPrev').addEventListener('click', () => navigateDate(-1));
   document.getElementById('mBtnNext').addEventListener('click', () => navigateDate(1));
   document.getElementById('mBtnToday').addEventListener('click', () => {
@@ -186,10 +131,8 @@ function setupMobileEventListeners() {
     renderMobile();
   });
 
-  // Admin Mode Toggle Badge
   document.getElementById('mAdminModeBadge').addEventListener('click', promptAdminLogin);
 
-  // Bottom Navigation Items Switcher
   document.querySelectorAll('.m-nav-item[data-view]').forEach(item => {
     item.addEventListener('click', (e) => {
       document.querySelectorAll('.m-nav-item').forEach(i => i.classList.remove('active'));
@@ -200,7 +143,6 @@ function setupMobileEventListeners() {
     });
   });
 
-  // Category Filter Chips
   document.querySelectorAll('.m-chip').forEach(chip => {
     chip.addEventListener('click', (e) => {
       document.querySelectorAll('.m-chip').forEach(c => c.classList.remove('active'));
@@ -210,53 +152,37 @@ function setupMobileEventListeners() {
     });
   });
 
-  // Bottom Add Practice Trigger
   document.getElementById('mBtnAddPractice').addEventListener('click', () => {
-    if (!isAdminMode) {
-      if (confirm('練習予定の追加は管理者専用機能です。\n管理者モードにログインしますか？')) {
-        promptAdminLogin();
-      }
-      return;
-    }
+    if (!isAdminMode) return promptAdminLogin();
     openMobilePracticeModal();
   });
 
   document.getElementById('mBtnAddNewSong').addEventListener('click', () => {
-    if (!isAdminMode) {
-      promptAdminLogin();
-      return;
-    }
+    if (!isAdminMode) return promptAdminLogin();
     openMobileEditSongModal();
   });
 
-  // Backup & Bulk Export Triggers
   document.getElementById('mBtnBackup').addEventListener('click', () => openMobileSheet('mBackupModal'));
   document.getElementById('mBtnBulkExport').addEventListener('click', openMobileBulkModal);
 
-  // Close Sheet Handlers
   document.querySelectorAll('[data-close]').forEach(btn => {
     btn.addEventListener('click', (e) => {
-      const sheetId = e.currentTarget.dataset.close;
-      closeMobileSheet(sheetId);
+      closeMobileSheet(e.currentTarget.dataset.close);
     });
   });
 
-  // Dynamic Input Row Adders
   document.getElementById('mBtnAddPieceRow').addEventListener('click', () => addMobilePieceRow());
   document.getElementById('mBtnAddTimetableRow').addEventListener('click', () => addMobileTimetableRow());
   document.getElementById('mBtnAddSongVideoRow').addEventListener('click', () => addMobileSongVideoRow());
 
-  // Form Submits
   document.getElementById('mPracticeForm').addEventListener('submit', handleMobilePracticeSubmit);
   document.getElementById('mEditSongForm').addEventListener('submit', handleMobileEditSongSubmit);
 
-  // Data Import / Export / Reset
   document.getElementById('mBtnExportJson').addEventListener('click', exportDataAsJson);
   document.getElementById('mBtnImportJson').addEventListener('click', () => document.getElementById('mImportJsonFile').click());
   document.getElementById('mImportJsonFile').addEventListener('change', importDataFromJson);
   document.getElementById('mBtnResetData').addEventListener('click', resetToSampleData);
 
-  // Bulk Export Handlers
   document.getElementById('mPresetThisMonth').addEventListener('click', () => setBulkPreset('thisMonth'));
   document.getElementById('mPresetNextMonth').addEventListener('click', () => setBulkPreset('nextMonth'));
   document.getElementById('mPresetAugSep').addEventListener('click', () => setBulkPreset('augSep'));
@@ -268,17 +194,11 @@ function setupMobileEventListeners() {
 }
 
 function navigateDate(dir) {
-  if (currentView === 'month') {
-    currentDate.setMonth(currentDate.getMonth() + dir);
-  } else {
-    currentDate.setDate(currentDate.getDate() + dir);
-  }
+  if (currentView === 'month') currentDate.setMonth(currentDate.getMonth() + dir);
+  else currentDate.setDate(currentDate.getDate() + dir);
   renderMobile();
 }
 
-/* ==========================================================================
-   Render Orchestrator
-   ========================================================================== */
 function renderMobile() {
   updateMobilePeriodTitle();
   updateAdminModeUi();
@@ -307,20 +227,12 @@ function updateMobilePeriodTitle() {
   const y = currentDate.getFullYear();
   const m = currentDate.getMonth() + 1;
   const d = currentDate.getDate();
-
   const titleEl = document.getElementById('mCurrentPeriodText');
-  if (currentView === 'month') {
-    titleEl.textContent = `${y}年 ${m}月`;
-  } else if (currentView === 'repertoire') {
-    titleEl.textContent = `全${repertoire.length}曲 ライブラリ`;
-  } else {
-    titleEl.textContent = `${y}年 ${m}月 ${d}日`;
-  }
+  if (currentView === 'month') titleEl.textContent = `${y}年 ${m}月`;
+  else if (currentView === 'repertoire') titleEl.textContent = `全${repertoire.length}曲 ライブラリ`;
+  else titleEl.textContent = `${y}年 ${m}月 ${d}日`;
 }
 
-/* ==========================================================================
-   1. Month View & Selected Day Rehearsal Sheet
-   ========================================================================== */
 function renderMobileMonthView() {
   const grid = document.querySelector('.m-month-grid');
   grid.innerHTML = `
@@ -341,13 +253,10 @@ function renderMobileMonthView() {
   const prevLastDate = new Date(year, month, 0).getDate();
 
   const todayStr = formatDate(new Date());
-  if (!selectedDateForMobileSheet) {
-    selectedDateForMobileSheet = todayStr;
-  }
+  if (!selectedDateForMobileSheet) selectedDateForMobileSheet = todayStr;
 
   for (let i = firstDayIndex; i > 0; i--) {
-    const dayNum = prevLastDate - i + 1;
-    grid.appendChild(createMobileDayCell(dayNum, true));
+    grid.appendChild(createMobileDayCell(prevLastDate - i + 1, true));
   }
 
   for (let day = 1; day <= lastDate; day++) {
@@ -356,9 +265,7 @@ function renderMobileMonthView() {
     const isSelected = dateStr === selectedDateForMobileSheet;
     
     let dayEvents = practices.filter(p => p.date === dateStr);
-    if (selectedCategory !== 'all') {
-      dayEvents = dayEvents.filter(p => p.category === selectedCategory);
-    }
+    if (selectedCategory !== 'all') dayEvents = dayEvents.filter(p => p.category === selectedCategory);
 
     grid.appendChild(createMobileDayCell(day, false, isToday, dateStr, dayEvents, isSelected));
   }
@@ -403,9 +310,7 @@ function renderMobileDaySheet() {
 
   const dateStr = selectedDateForMobileSheet || formatDate(currentDate);
   let dayEvents = practices.filter(p => p.date === dateStr);
-  if (selectedCategory !== 'all') {
-    dayEvents = dayEvents.filter(p => p.category === selectedCategory);
-  }
+  if (selectedCategory !== 'all') dayEvents = dayEvents.filter(p => p.category === selectedCategory);
 
   if (dayEvents.length === 0) {
     container.innerHTML = `
@@ -430,25 +335,15 @@ function renderMobileDaySheet() {
   attachMobilePracticeCardEvents(container);
 }
 
-/* ==========================================================================
-   2. Day & Timetable Views
-   ========================================================================== */
 function renderMobileDayView() {
   const container = document.getElementById('mDayViewContent');
   const dateStr = formatDate(currentDate);
 
   let dayEvents = practices.filter(p => p.date === dateStr);
-  if (selectedCategory !== 'all') {
-    dayEvents = dayEvents.filter(p => p.category === selectedCategory);
-  }
+  if (selectedCategory !== 'all') dayEvents = dayEvents.filter(p => p.category === selectedCategory);
 
   if (dayEvents.length === 0) {
-    container.innerHTML = `
-      <div class="m-practice-card" style="text-align: center; color: var(--text-muted); padding: 30px;">
-        <div style="font-size: 2.5rem; margin-bottom: 10px;">📅</div>
-        <h3>この日の練習予定はありません</h3>
-      </div>
-    `;
+    container.innerHTML = `<div class="m-practice-card" style="text-align: center; color: var(--text-muted); padding: 30px;">この日の練習予定はありません</div>`;
     return;
   }
 
@@ -458,11 +353,8 @@ function renderMobileDayView() {
 
 function renderMobileTimetableView() {
   const container = document.getElementById('mTimetableContent');
-
   let filtered = [...practices];
-  if (selectedCategory !== 'all') {
-    filtered = filtered.filter(p => p.category === selectedCategory);
-  }
+  if (selectedCategory !== 'all') filtered = filtered.filter(p => p.category === selectedCategory);
   filtered.sort((a, b) => a.date.localeCompare(b.date));
 
   if (filtered.length === 0) {
@@ -474,9 +366,6 @@ function renderMobileTimetableView() {
   attachMobilePracticeCardEvents(container);
 }
 
-/* ==========================================================================
-   3. Repertoire Library View
-   ========================================================================== */
 function renderMobileRepertoireView() {
   const container = document.getElementById('mRepertoireContent');
   if (!repertoire || repertoire.length === 0) {
@@ -530,29 +419,19 @@ function renderMobileRepertoireView() {
 
   if (isAdminMode) {
     container.querySelectorAll('.btn-edit-song').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        openMobileEditSongModal(e.currentTarget.dataset.songid);
-      });
+      btn.addEventListener('click', (e) => openMobileEditSongModal(e.currentTarget.dataset.songid));
     });
   }
 }
 
-/* ==========================================================================
-   Practice Cards Renderer (Full-width Touch Buttons & Rich Timetable Slots)
-   ========================================================================== */
 function renderMobilePracticeCardHtml(practice, showDate = false) {
   const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((practice.locationName || '') + ' ' + (practice.locationAddress || ''))}`;
 
-  // Main practice pieces
   const piecesHtml = (practice.pieces || []).map(piece => {
     const matchedRepSong = repertoire.find(s => s.title === piece.title);
     let videos = piece.videos && piece.videos.length > 0 ? [...piece.videos] : [];
-    if (videos.length === 0 && matchedRepSong && matchedRepSong.videos) {
-      videos = [...matchedRepSong.videos];
-    }
-    if (videos.length === 0) {
-      videos = [{ title: `${piece.title} 吹奏楽参考音源`, url: `https://www.youtube.com/results?search_query=${encodeURIComponent(piece.title + ' 吹奏楽')}` }];
-    }
+    if (videos.length === 0 && matchedRepSong && matchedRepSong.videos) videos = [...matchedRepSong.videos];
+    if (videos.length === 0) videos = [{ title: `${piece.title} 吹奏楽参考音源`, url: `https://www.youtube.com/results?search_query=${encodeURIComponent(piece.title + ' 吹奏楽')}` }];
 
     const videoBtnsHtml = videos.map((v, idx) => `
       <button class="m-btn-yt-highlight btn-play-card-video" data-songtitle="${escapeHtml(piece.title)}" data-videos='${JSON.stringify(videos).replace(/'/g, "&apos;")}' data-idx="${idx}">
@@ -572,7 +451,6 @@ function renderMobilePracticeCardHtml(practice, showDate = false) {
     `;
   }).join('');
 
-  // Timetable Slots WITH YouTube playback buttons and assigned song badges (PC版と同等のリッチ表示)
   const timetableHtml = (practice.timetable || []).map(slot => {
     const assignedSongs = (slot.pieceIds || []).map(songId => repertoire.find(s => s.id === songId)).filter(Boolean);
 
@@ -623,9 +501,7 @@ function renderMobilePracticeCardHtml(practice, showDate = false) {
 
       <div style="display:flex; gap:6px; margin-top:12px;">
         <button class="m-btn-line btn-share-practice" data-id="${practice.id}" style="flex:1;">📲 LINE共有</button>
-        ${isAdminMode ? `
-          <button class="m-btn-glass btn-edit-practice" data-id="${practice.id}">✏️ 編集</button>
-        ` : ''}
+        ${isAdminMode ? `<button class="m-btn-glass btn-edit-practice" data-id="${practice.id}">✏️ 編集</button>` : ''}
       </div>
     </div>
   `;
@@ -645,14 +521,7 @@ function attachMobilePracticeCardEvents(container) {
     btn.addEventListener('click', (e) => {
       const p = practices.find(item => item.id === e.currentTarget.dataset.id);
       if (p) {
-        let text = `🎵【吹奏楽 練習連絡】\n📌 ${p.title}\n📅 日時: ${p.date}\n📍 場所: ${p.locationName || '未定'}\n👨‍🏫 指揮: ${p.conductors || '未定'}\n`;
-        if (p.timetable && p.timetable.length > 0) {
-          text += `\n⏰ 【当日の時間割】\n`;
-          p.timetable.forEach(t => {
-            text += `・${t.startTime}-${t.endTime} [${t.category}] ${t.title}\n`;
-          });
-        }
-        text += `\n📱 アプリで確認・参考音源再生:\n${window.location.href}`;
+        let text = `🎵【吹奏楽 練習連絡】\n📌 ${p.title}\n📅 日時: ${p.date}\n📍 場所: ${p.locationName || '未定'}\n👨‍🏫 指揮: ${p.conductors || '未定'}\n📱 Webアプリ:\n${window.location.href}`;
         window.open(`https://line.me/R/msg/text/?${encodeURIComponent(text)}`, '_blank');
       }
     });
@@ -660,24 +529,13 @@ function attachMobilePracticeCardEvents(container) {
 
   if (isAdminMode) {
     container.querySelectorAll('.btn-edit-practice').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        openMobilePracticeModal(e.currentTarget.dataset.id);
-      });
+      btn.addEventListener('click', (e) => openMobilePracticeModal(e.currentTarget.dataset.id));
     });
   }
 }
 
-/* ==========================================================================
-   Modals & Bottom Sheet Engine
-   ========================================================================== */
-function openMobileSheet(id) {
-  const sheet = document.getElementById(id);
-  sheet.classList.add('active');
-}
-
-function closeMobileSheet(id) {
-  document.getElementById(id).classList.remove('active');
-}
+function openMobileSheet(id) { document.getElementById(id).classList.add('active'); }
+function closeMobileSheet(id) { document.getElementById(id).classList.remove('active'); }
 
 function openMobilePracticeModal(id = null) {
   const form = document.getElementById('mPracticeForm');
@@ -778,9 +636,7 @@ function handleMobilePracticeSubmit(e) {
   const pieces = [];
   document.querySelectorAll('#mPiecesContainer .m-piece-item').forEach(row => {
     const pTitle = row.querySelector('.m-piece-title').value.trim();
-    if (pTitle) {
-      pieces.push({ title: pTitle, conductor: conductors });
-    }
+    if (pTitle) pieces.push({ title: pTitle, conductor: conductors });
   });
 
   const timetable = [];
@@ -798,18 +654,7 @@ function handleMobilePracticeSubmit(e) {
     }
   });
 
-  const newPractice = {
-    id,
-    date,
-    category,
-    title,
-    locationName,
-    conductors,
-    generalNotes,
-    pieces,
-    timetable
-  };
-
+  const newPractice = { id, date, category, title, locationName, conductors, generalNotes, pieces, timetable };
   const idx = practices.findIndex(p => p.id === id);
   if (idx >= 0) practices[idx] = newPractice;
   else practices.push(newPractice);
@@ -837,7 +682,6 @@ function openMobileEditSongModal(songId = null) {
       document.getElementById('mEditSongConductor').value = song.conductor || '';
       document.getElementById('mEditSongPoints').value = song.points || '';
       delBtn.style.display = 'block';
-
       (song.videos || []).forEach(v => addMobileSongVideoRow(v));
     }
   } else {
@@ -898,7 +742,6 @@ function handleMobileEditSongSubmit(e) {
 
 function openYoutubeMultiVideoModal(songTitle, videos = [], activeIdx = 0) {
   const body = document.getElementById('mDetailModalBody');
-
   if (!videos || videos.length === 0) {
     videos = [{ title: `${songTitle} 吹奏楽名演`, url: `https://www.youtube.com/results?search_query=${encodeURIComponent(songTitle + ' 吹奏楽')}` }];
   }
@@ -933,7 +776,6 @@ function openYoutubeMultiVideoModal(songTitle, videos = [], activeIdx = 0) {
   openMobileSheet('mDetailModal');
 }
 
-/* Bulk Export Modal Presets */
 function openMobileBulkModal() {
   setBulkPreset('augSep');
   openMobileSheet('mBulkModal');
@@ -962,12 +804,9 @@ function setBulkPreset(presetKey) {
 function shareBulkToLine() {
   const startStr = document.getElementById('mBulkStartDate').value;
   const endStr = document.getElementById('mBulkEndDate').value;
-
   const selectedPractices = practices.filter(p => p.date >= startStr && p.date <= endStr).sort((a, b) => a.date.localeCompare(b.date));
-  if (selectedPractices.length === 0) {
-    alert('指定期間の練習予定がありません');
-    return;
-  }
+
+  if (selectedPractices.length === 0) return alert('指定期間の練習予定がありません');
 
   let text = `🎵【吹奏楽 一括練習連絡】\n🗓️ 期間: ${startStr} ～ ${endStr}\n------------------\n`;
   selectedPractices.forEach((p, idx) => {
@@ -988,9 +827,7 @@ function copyBulkLineTextToClipboard() {
     text += `\n【${idx + 1}】${p.date} (${p.category})\n📌 ${p.title}\n📍 ${p.locationName || '未定'}\n👨‍🏫 指揮: ${p.conductors || '未定'}\n`;
   });
 
-  navigator.clipboard.writeText(text).then(() => {
-    alert('一括テキストをコピーしました！');
-  });
+  navigator.clipboard.writeText(text).then(() => alert('一括テキストをコピーしました！'));
 }
 
 function downloadBulkIcsFile() {
@@ -998,10 +835,7 @@ function downloadBulkIcsFile() {
   const endStr = document.getElementById('mBulkEndDate').value;
   const selectedPractices = practices.filter(p => p.date >= startStr && p.date <= endStr);
 
-  if (selectedPractices.length === 0) {
-    alert('指定期間の練習予定がありません');
-    return;
-  }
+  if (selectedPractices.length === 0) return alert('指定期間の練習予定がありません');
 
   const vevents = selectedPractices.map(p => {
     const dClean = p.date.replace(/-/g, '');
@@ -1069,18 +903,13 @@ function resetToSampleData() {
   }
 }
 
-/* Helpers */
 function formatDate(d) {
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 function extractYoutubeId(url) {
   if (!url) return null;
-  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-  const match = url.match(regExp);
+  const match = url.match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/);
   return (match && match[2] && match[2].length === 11) ? match[2] : null;
 }
 
