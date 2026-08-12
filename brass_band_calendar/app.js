@@ -1,6 +1,6 @@
 /**
  * 吹奏楽専用カレンダー Web App メインロジック (Brass Band Practice Calendar App - PC Version)
- * View-Only Mode (閲覧専用) & Admin Mode (管理者用) + Cache-Buster & "先生" Aggressive Sanitizer
+ * View-Only Mode (閲覧専用) & Admin Mode (管理者用) + Aggressive "先生" Storage Scrubber
  */
 
 import { INITIAL_PRACTICE_DATA, MASTER_REPERTOIRE } from './sample-data.js';
@@ -16,12 +16,13 @@ let activePracticeForExport = null;
 let highestZIndex = 5000;
 let isAdminMode = false;
 
-// Permanent Storage Keys
-const PERMANENT_STORAGE_KEY_PRACTICES = 'brass_band_calendar_practices_v7';
-const PERMANENT_STORAGE_KEY_REPERTOIRE = 'brass_band_calendar_repertoire_v7';
+// Storage Keys
+const PERMANENT_STORAGE_KEY_PRACTICES = 'brass_band_calendar_practices_v8';
+const PERMANENT_STORAGE_KEY_REPERTOIRE = 'brass_band_calendar_repertoire_v8';
 const ADMIN_MODE_STORAGE_KEY = 'brass_band_calendar_is_admin';
 
 document.addEventListener('DOMContentLoaded', () => {
+  wipeSenseiFromAllLocalStorage();
   initStorage();
   checkAdminMode();
   setupEventListeners();
@@ -29,9 +30,30 @@ document.addEventListener('DOMContentLoaded', () => {
   render();
 });
 
-/* ==========================================================================
-   Admin / View-Only Mode Engine
-   ========================================================================== */
+/* Aggressive LocalStorage Scrubber for "先生" Removal */
+function wipeSenseiFromAllLocalStorage() {
+  try {
+    const keysToClean = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && (k.includes('brass') || k.includes('repertoire') || k.includes('practice'))) {
+        keysToClean.push(k);
+      }
+    }
+
+    keysToClean.forEach(k => {
+      let val = localStorage.getItem(k);
+      if (val && val.includes('先生')) {
+        val = val.replace(/\s*先生/g, '');
+        localStorage.setItem(k, val);
+      }
+    });
+  } catch (e) {
+    console.error('Scrubber error:', e);
+  }
+}
+
+/* Admin / View-Only Mode Engine */
 function checkAdminMode() {
   const urlParams = new URLSearchParams(window.location.search);
   if (urlParams.get('admin') === '1') {
@@ -59,7 +81,6 @@ function updateAdminModeUi() {
     }
   }
 
-  // Toggle visibility of admin-only edit controls
   document.querySelectorAll('.admin-only').forEach(el => {
     el.style.display = isAdminMode ? '' : 'none';
   });
@@ -87,9 +108,7 @@ function promptAdminLogin() {
   }
 }
 
-/* ==========================================================================
-   Storage & Initialization (「先生」の排除 & 全データ強制最新化)
-   ========================================================================== */
+/* Storage Initialization */
 function initStorage() {
   let loadedPractices = null;
   let loadedRepertoire = null;
@@ -105,27 +124,30 @@ function initStorage() {
   practices = loadedPractices || JSON.parse(JSON.stringify(INITIAL_PRACTICE_DATA));
   repertoire = loadedRepertoire || JSON.parse(JSON.stringify(MASTER_REPERTOIRE));
 
-  // Force sanitize all "先生" occurrences out of memory & localStorage
-  sanitizeAllConductorNames();
+  deepSanitizeObjects(practices);
+  deepSanitizeObjects(repertoire);
   saveToStorage();
 }
 
-function sanitizeAllConductorNames() {
-  const cleanStr = (str) => {
-    if (!str) return '';
-    return str.replace(/\s*先生/g, '').trim();
-  };
-
-  repertoire.forEach(s => {
-    if (s.conductor) s.conductor = cleanStr(s.conductor);
-  });
-
-  practices.forEach(p => {
-    if (p.conductors) p.conductors = cleanStr(p.conductors);
-    (p.pieces || []).forEach(pc => {
-      if (pc.conductor) pc.conductor = cleanStr(pc.conductor);
+function deepSanitizeObjects(obj) {
+  if (!obj) return;
+  if (typeof obj === 'string') {
+    return obj.replace(/\s*先生/g, '').trim();
+  }
+  if (Array.isArray(obj)) {
+    obj.forEach((item, idx) => {
+      if (typeof item === 'string') obj[idx] = item.replace(/\s*先生/g, '').trim();
+      else if (typeof item === 'object') deepSanitizeObjects(item);
     });
-  });
+  } else if (typeof obj === 'object') {
+    Object.keys(obj).forEach(key => {
+      if (typeof obj[key] === 'string') {
+        obj[key] = obj[key].replace(/\s*先生/g, '').trim();
+      } else if (typeof obj[key] === 'object') {
+        deepSanitizeObjects(obj[key]);
+      }
+    });
+  }
 }
 
 function saveToStorage() {
@@ -520,6 +542,7 @@ function renderRepertoireCardsHtml(songList) {
   if (!songList || songList.length === 0) return `<div style="padding: 20px; text-align: center; color: var(--text-muted);">曲目が登録されていません。</div>`;
 
   return songList.map(song => {
+    const cleanConductor = (song.conductor || '未定').replace(/\s*先生/g, '');
     const videoBtnsHtml = (song.videos || []).map((v, idx) => `
       <button class="btn-glass btn-sm btn-yt-highlight btn-play-rep-video" data-songid="${song.id}" data-vididx="${idx}">
         🎬 ${escapeHtml(v.title || `演奏動画 ${idx+1}`)}
@@ -536,7 +559,7 @@ function renderRepertoireCardsHtml(songList) {
           </div>
           <div style="display: flex; gap: 8px; align-items: center;">
             <div style="font-size: 0.85rem; background: rgba(255,255,255,0.05); padding: 4px 10px; border-radius: var(--radius-sm); border: 1px solid var(--glass-border);">
-              👨‍🏫 指揮: <strong>${escapeHtml(song.conductor || '未定')}</strong>
+              👨‍🏫 指揮: <strong>${escapeHtml(cleanConductor)}</strong>
             </div>
             ${isAdminMode ? `
               <button class="btn-glass btn-sm btn-edit-song" data-songid="${song.id}" style="padding: 4px 10px; font-weight: 700;">
@@ -548,7 +571,7 @@ function renderRepertoireCardsHtml(songList) {
 
         ${song.points ? `
           <div class="piece-points" style="font-size: 0.85rem; padding: 10px; margin-top: 8px;">
-            ${escapeHtml(song.points)}
+            ${escapeHtml(song.points.replace(/\s*先生/g, ''))}
           </div>
         ` : ''}
 
@@ -576,9 +599,7 @@ function attachRepertoireEvents(container) {
 
   if (isAdminMode) {
     container.querySelectorAll('.btn-edit-song').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        openEditSongModal(e.currentTarget.dataset.songid);
-      });
+      btn.addEventListener('click', (e) => openEditSongModal(e.currentTarget.dataset.songid));
     });
   }
 }
@@ -599,7 +620,7 @@ function openEditSongModal(songId = null) {
       document.getElementById('editSongNo').value = song.no || '';
       document.getElementById('editSongTitle').value = song.title || '';
       document.getElementById('editSongComposer').value = song.composer || '';
-      document.getElementById('editSongConductor').value = song.conductor || '';
+      document.getElementById('editSongConductor').value = (song.conductor || '').replace(/\s*先生/g, '');
       document.getElementById('editSongPoints').value = song.points || '';
 
       deleteBtn.style.display = 'inline-flex';
@@ -644,7 +665,7 @@ function handleEditSongSubmit(e) {
   const no = document.getElementById('editSongNo').value;
   const title = document.getElementById('editSongTitle').value;
   const composer = document.getElementById('editSongComposer').value;
-  const conductor = document.getElementById('editSongConductor').value;
+  const conductor = document.getElementById('editSongConductor').value.replace(/\s*先生/g, '');
   const points = document.getElementById('editSongPoints').value;
 
   const videos = [];
@@ -704,11 +725,13 @@ function renderPracticeCardHtml(practice, showDateBadge = false) {
       </div>
     `;
 
+    const cleanCond = (piece.conductor || '').replace(/\s*先生/g, '');
+
     return `
       <div class="piece-card">
         <div class="piece-header">
           <span class="piece-title">🎼 ${escapeHtml(piece.title || '無題の曲')}</span>
-          ${piece.conductor ? `<span class="piece-conductor">👨‍🏫 指導: ${escapeHtml(piece.conductor)}</span>` : ''}
+          ${cleanCond ? `<span class="piece-conductor">👨‍🏫 指導: ${escapeHtml(cleanCond)}</span>` : ''}
         </div>
         ${piece.points ? `<div class="piece-points">${escapeHtml(piece.points)}</div>` : ''}
         ${videoTabsHtml}
@@ -743,6 +766,8 @@ function renderPracticeCardHtml(practice, showDateBadge = false) {
     `;
   }).join('');
 
+  const cleanPracticeCond = (practice.conductors || '').replace(/\s*先生/g, '');
+
   return `
     <div class="practice-card glass-panel" data-cat="${practice.category}" id="card-${practice.id}">
       <div class="card-header-main">
@@ -764,7 +789,7 @@ function renderPracticeCardHtml(practice, showDateBadge = false) {
             </a>
           </div>
         ` : ''}
-        ${practice.conductors ? `<div class="meta-item">👨‍🏫 指揮: ${escapeHtml(practice.conductors)}</div>` : ''}
+        ${cleanPracticeCond ? `<div class="meta-item">👨‍🏫 指揮: ${escapeHtml(cleanPracticeCond)}</div>` : ''}
       </div>
 
       ${piecesHtml ? `
@@ -823,9 +848,7 @@ function attachPracticeCardEvents(container) {
   });
 
   container.querySelectorAll('.btn-share-practice').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      openExportModal(e.currentTarget.dataset.id);
-    });
+    btn.addEventListener('click', (e) => openExportModal(e.currentTarget.dataset.id));
   });
 
   if (isAdminMode) {
@@ -872,7 +895,7 @@ function openPracticeModal(id = null) {
       document.getElementById('inputTitle').value = p.title;
       document.getElementById('inputLocationName').value = p.locationName || '';
       document.getElementById('inputLocationAddress').value = p.locationAddress || '';
-      document.getElementById('inputConductors').value = p.conductors || '';
+      document.getElementById('inputConductors').value = (p.conductors || '').replace(/\s*先生/g, '');
       document.getElementById('inputGeneralNotes').value = p.generalNotes || '';
 
       (p.pieces || []).forEach(piece => addPieceInputRow(piece));
@@ -914,7 +937,7 @@ function addPieceInputRow(piece = {}) {
       </div>
       <div class="form-group">
         <label>指揮者 (公文 / 下川)</label>
-        <input type="text" class="form-control piece-conductor-input" value="${escapeHtml(piece.conductor || '')}">
+        <input type="text" class="form-control piece-conductor-input" value="${escapeHtml((piece.conductor || '').replace(/\s*先生/g, ''))}">
       </div>
     </div>
   `;
@@ -923,7 +946,7 @@ function addPieceInputRow(piece = {}) {
     const song = repertoire.find(s => s.id === e.target.value);
     if (song) {
       row.querySelector('.piece-title-input').value = song.title;
-      row.querySelector('.piece-conductor-input').value = song.conductor || '';
+      row.querySelector('.piece-conductor-input').value = (song.conductor || '').replace(/\s*先生/g, '');
     }
   });
 
@@ -980,7 +1003,7 @@ function handlePracticeSubmit(e) {
   const category = document.getElementById('inputCategory').value;
   const title = document.getElementById('inputTitle').value;
   const locationName = document.getElementById('inputLocationName').value;
-  const conductors = document.getElementById('inputConductors').value;
+  const conductors = document.getElementById('inputConductors').value.replace(/\s*先生/g, '');
   const generalNotes = document.getElementById('inputGeneralNotes').value;
 
   const pieces = [];
@@ -989,7 +1012,7 @@ function handlePracticeSubmit(e) {
     if (pTitle) {
       pieces.push({
         title: pTitle,
-        conductor: row.querySelector('.piece-conductor-input').value.trim()
+        conductor: row.querySelector('.piece-conductor-input').value.trim().replace(/\s*先生/g, '')
       });
     }
   });

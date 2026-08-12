@@ -1,13 +1,13 @@
 /**
  * 吹奏楽専用カレンダー Smartphone App Main Logic (mobile-app.js)
- * View-Only Mode & Admin Mode + Cache-Buster & "先生" Aggressive Sanitizer
+ * View-Only Mode & Admin Mode + Aggressive "先生" Storage Scrubber
  */
 
 import { INITIAL_PRACTICE_DATA, MASTER_REPERTOIRE } from './sample-data.js';
 
-// Shared Storage Keys with PC version (Bumped to v7 for immediate cache invalidation)
-const PERMANENT_STORAGE_KEY_PRACTICES = 'brass_band_calendar_practices_v7';
-const PERMANENT_STORAGE_KEY_REPERTOIRE = 'brass_band_calendar_repertoire_v7';
+// Storage Keys
+const PERMANENT_STORAGE_KEY_PRACTICES = 'brass_band_calendar_practices_v8';
+const PERMANENT_STORAGE_KEY_REPERTOIRE = 'brass_band_calendar_repertoire_v8';
 const ADMIN_MODE_STORAGE_KEY = 'brass_band_calendar_is_admin';
 
 // Global State
@@ -20,11 +20,34 @@ let selectedDateForMobileSheet = null;
 let isAdminMode = false;
 
 document.addEventListener('DOMContentLoaded', () => {
+  wipeSenseiFromAllLocalStorage();
   initStorage();
   checkAdminMode();
   setupMobileEventListeners();
   renderMobile();
 });
+
+function wipeSenseiFromAllLocalStorage() {
+  try {
+    const keysToClean = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && (k.includes('brass') || k.includes('repertoire') || k.includes('practice'))) {
+        keysToClean.push(k);
+      }
+    }
+
+    keysToClean.forEach(k => {
+      let val = localStorage.getItem(k);
+      if (val && val.includes('先生')) {
+        val = val.replace(/\s*先生/g, '');
+        localStorage.setItem(k, val);
+      }
+    });
+  } catch (e) {
+    console.error('Scrubber error:', e);
+  }
+}
 
 function checkAdminMode() {
   const urlParams = new URLSearchParams(window.location.search);
@@ -89,26 +112,30 @@ function initStorage() {
   practices = loadedPractices || JSON.parse(JSON.stringify(INITIAL_PRACTICE_DATA));
   repertoire = loadedRepertoire || JSON.parse(JSON.stringify(MASTER_REPERTOIRE));
 
-  sanitizeAllConductorNames();
+  deepSanitizeObjects(practices);
+  deepSanitizeObjects(repertoire);
   saveToStorage();
 }
 
-function sanitizeAllConductorNames() {
-  const cleanStr = (str) => {
-    if (!str) return '';
-    return str.replace(/\s*先生/g, '').trim();
-  };
-
-  repertoire.forEach(s => {
-    if (s.conductor) s.conductor = cleanStr(s.conductor);
-  });
-
-  practices.forEach(p => {
-    if (p.conductors) p.conductors = cleanStr(p.conductors);
-    (p.pieces || []).forEach(pc => {
-      if (pc.conductor) pc.conductor = cleanStr(pc.conductor);
+function deepSanitizeObjects(obj) {
+  if (!obj) return;
+  if (typeof obj === 'string') {
+    return obj.replace(/\s*先生/g, '').trim();
+  }
+  if (Array.isArray(obj)) {
+    obj.forEach((item, idx) => {
+      if (typeof item === 'string') obj[idx] = item.replace(/\s*先生/g, '').trim();
+      else if (typeof item === 'object') deepSanitizeObjects(item);
     });
-  });
+  } else if (typeof obj === 'object') {
+    Object.keys(obj).forEach(key => {
+      if (typeof obj[key] === 'string') {
+        obj[key] = obj[key].replace(/\s*先生/g, '').trim();
+      } else if (typeof obj[key] === 'object') {
+        deepSanitizeObjects(obj[key]);
+      }
+    });
+  }
 }
 
 function saveToStorage() {
@@ -374,6 +401,7 @@ function renderMobileRepertoireView() {
   }
 
   container.innerHTML = repertoire.map(song => {
+    const cleanCond = (song.conductor || '未定').replace(/\s*先生/g, '');
     const videoBtnsHtml = (song.videos || []).map((v, idx) => `
       <button class="m-btn-yt-highlight btn-play-rep-video" data-songid="${song.id}" data-vididx="${idx}">
         🎬 ${escapeHtml(v.title || `演奏動画 ${idx+1}`)}
@@ -392,12 +420,12 @@ function renderMobileRepertoireView() {
         </div>
 
         <div style="font-size: 0.82rem; margin-top: 6px; color: var(--text-gold);">
-          👨‍🏫 指揮: <strong>${escapeHtml(song.conductor || '未定')}</strong>
+          👨‍🏫 指揮: <strong>${escapeHtml(cleanCond)}</strong>
         </div>
 
         ${song.points ? `
           <div style="font-size: 0.8rem; background: rgba(0,0,0,0.3); padding: 8px; border-radius: 8px; margin-top: 6px; white-space: pre-wrap; color: var(--text-secondary);">
-            ${escapeHtml(song.points)}
+            ${escapeHtml(song.points.replace(/\s*先生/g, ''))}
           </div>
         ` : ''}
 
@@ -439,11 +467,13 @@ function renderMobilePracticeCardHtml(practice, showDate = false) {
       </button>
     `).join('');
 
+    const cleanCond = (piece.conductor || '').replace(/\s*先生/g, '');
+
     return `
       <div class="m-piece-item">
         <div style="display:flex; justify-content:space-between; align-items:center;">
           <span style="font-weight:800; font-size:0.95rem; color:var(--color-brass-light);">🎼 ${escapeHtml(piece.title)}</span>
-          ${piece.conductor ? `<span style="font-size:0.75rem; background:rgba(229,193,88,0.15); color:var(--color-brass-light); padding:2px 6px; border-radius:4px;">👨‍🏫 ${escapeHtml(piece.conductor)}</span>` : ''}
+          ${cleanCond ? `<span style="font-size:0.75rem; background:rgba(229,193,88,0.15); color:var(--color-brass-light); padding:2px 6px; border-radius:4px;">👨‍🏫 ${escapeHtml(cleanCond)}</span>` : ''}
         </div>
         ${piece.points ? `<div style="font-size:0.78rem; color:var(--text-secondary); margin-top:4px;">${escapeHtml(piece.points)}</div>` : ''}
         ${videoBtnsHtml}
@@ -475,6 +505,8 @@ function renderMobilePracticeCardHtml(practice, showDate = false) {
     `;
   }).join('');
 
+  const cleanPracticeCond = (practice.conductors || '').replace(/\s*先生/g, '');
+
   return `
     <div class="m-practice-card" id="m-card-${practice.id}">
       <div style="display:flex; justify-content:space-between; align-items:flex-start;">
@@ -487,7 +519,7 @@ function renderMobilePracticeCardHtml(practice, showDate = false) {
 
       <div style="margin-top:6px; font-size:0.8rem; color:var(--text-secondary); display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
         ${practice.locationName ? `<div>📍 ${escapeHtml(practice.locationName)} <a href="${mapUrl}" target="_blank" class="m-btn-sm" style="text-decoration:none;">🗺️ Map</a></div>` : ''}
-        ${practice.conductors ? `<div>👨‍🏫 指揮: <strong>${escapeHtml(practice.conductors)}</strong></div>` : ''}
+        ${cleanPracticeCond ? `<div>👨‍🏫 指揮: <strong>${escapeHtml(cleanPracticeCond)}</strong></div>` : ''}
       </div>
 
       ${piecesHtml ? `<div style="margin-top:10px;"><div style="font-size:0.82rem; font-weight:800; color:var(--color-brass-light);">🎼 練習曲 & 参考音源 (YouTube)</div>${piecesHtml}</div>` : ''}
@@ -521,7 +553,7 @@ function attachMobilePracticeCardEvents(container) {
     btn.addEventListener('click', (e) => {
       const p = practices.find(item => item.id === e.currentTarget.dataset.id);
       if (p) {
-        let text = `🎵【吹奏楽 練習連絡】\n📌 ${p.title}\n📅 日時: ${p.date}\n📍 場所: ${p.locationName || '未定'}\n👨‍🏫 指揮: ${p.conductors || '未定'}\n📱 Webアプリ:\n${window.location.href}`;
+        let text = `🎵【吹奏楽 練習連絡】\n📌 ${p.title}\n📅 日時: ${p.date}\n📍 場所: ${p.locationName || '未定'}\n👨‍🏫 指揮: ${p.conductors || '未定'}\n📱 アプリ:\n${window.location.href}`;
         window.open(`https://line.me/R/msg/text/?${encodeURIComponent(text)}`, '_blank');
       }
     });
@@ -552,7 +584,7 @@ function openMobilePracticeModal(id = null) {
       document.getElementById('mInputCategory').value = p.category;
       document.getElementById('mInputTitle').value = p.title;
       document.getElementById('mInputLocationName').value = p.locationName || '';
-      document.getElementById('mInputConductors').value = p.conductors || '';
+      document.getElementById('mInputConductors').value = (p.conductors || '').replace(/\s*先生/g, '');
       document.getElementById('mInputNotes').value = p.generalNotes || '';
 
       (p.pieces || []).forEach(pc => addMobilePieceRow(pc));
@@ -630,7 +662,7 @@ function handleMobilePracticeSubmit(e) {
   const category = document.getElementById('mInputCategory').value;
   const title = document.getElementById('mInputTitle').value;
   const locationName = document.getElementById('mInputLocationName').value;
-  const conductors = document.getElementById('mInputConductors').value;
+  const conductors = document.getElementById('mInputConductors').value.replace(/\s*先生/g, '');
   const generalNotes = document.getElementById('mInputNotes').value;
 
   const pieces = [];
@@ -679,7 +711,7 @@ function openMobileEditSongModal(songId = null) {
       document.getElementById('mEditSongNo').value = song.no || '';
       document.getElementById('mEditSongTitle').value = song.title || '';
       document.getElementById('mEditSongComposer').value = song.composer || '';
-      document.getElementById('mEditSongConductor').value = song.conductor || '';
+      document.getElementById('mEditSongConductor').value = (song.conductor || '').replace(/\s*先生/g, '');
       document.getElementById('mEditSongPoints').value = song.points || '';
       delBtn.style.display = 'block';
       (song.videos || []).forEach(v => addMobileSongVideoRow(v));
@@ -715,7 +747,7 @@ function handleMobileEditSongSubmit(e) {
   const no = document.getElementById('mEditSongNo').value;
   const title = document.getElementById('mEditSongTitle').value;
   const composer = document.getElementById('mEditSongComposer').value;
-  const conductor = document.getElementById('mEditSongConductor').value;
+  const conductor = document.getElementById('mEditSongConductor').value.replace(/\s*先生/g, '');
   const points = document.getElementById('mEditSongPoints').value;
 
   const videos = [];
