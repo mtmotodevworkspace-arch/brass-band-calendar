@@ -1,0 +1,554 @@
+/* ==========================================================================
+   吹奏楽専用カレンダー Smartphone Native App Dedicated Stylesheet (mobile-style.css)
+   ========================================================================== */
+
+:root {
+  --bg-dark: #080c14;
+  --bg-surface: rgba(18, 26, 43, 0.95);
+  --glass-border: rgba(255, 255, 255, 0.12);
+  --glass-border-gold: rgba(229, 193, 88, 0.45);
+
+  --color-brass: #e5c158;
+  --color-brass-light: #fef08a;
+  --color-gold-gradient: linear-gradient(135deg, #ffe79a 0%, #e5c158 100%);
+  --color-yt-red: #ff3b3b;
+  --color-yt-gradient: linear-gradient(135deg, #ff4e4e 0%, #dc2626 100%);
+
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+
+  --cat-ensemble: #e5c158;
+  --cat-part: #10b981;
+  --cat-personal: #3b82f6;
+  --cat-concert: #f43f5e;
+  --cat-other: #a855f7;
+
+  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body.mobile-body {
+  background-color: var(--bg-dark);
+  background-image: radial-gradient(circle at 50% 0%, rgba(229, 193, 88, 0.12) 0%, transparent 60%);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  min-height: 100vh;
+  padding-bottom: 90px; /* Space for bottom nav dock */
+  overflow-x: hidden;
+}
+
+/* Background Ambient Orbs */
+.m-glow {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(80px);
+  pointer-events: none;
+  z-index: 0;
+}
+.m-glow-1 { top: -50px; left: -50px; width: 200px; height: 200px; background: rgba(229, 193, 88, 0.15); }
+.m-glow-2 { bottom: 100px; right: -50px; width: 250px; height: 250px; background: rgba(59, 130, 246, 0.1); }
+
+/* Header & Sticky Top Bar */
+.m-header {
+  position: sticky;
+  top: 0;
+  z-index: 500;
+  background: rgba(8, 12, 20, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--glass-border);
+  padding: 10px 12px;
+}
+
+.m-brand-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.m-brand-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.m-logo {
+  font-size: 1.2rem;
+}
+
+.m-title {
+  font-size: 1.1rem;
+  font-weight: 800;
+  background: var(--color-gold-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.m-brand-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.m-icon-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--glass-border);
+  color: var(--text-primary);
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 0.9rem;
+  min-height: 34px;
+}
+
+.m-pc-link {
+  font-size: 0.75rem;
+  color: var(--color-brass-light);
+  text-decoration: none;
+  background: rgba(229, 193, 88, 0.15);
+  border: 1px solid var(--glass-border-gold);
+  padding: 4px 8px;
+  border-radius: 8px;
+  font-weight: 700;
+}
+
+/* Date Switcher Bar */
+.m-date-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.m-arrow-btn, .m-today-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--glass-border);
+  color: var(--text-primary);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  min-height: 36px;
+}
+
+.m-period-text {
+  flex: 1;
+  text-align: center;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--color-brass-light);
+}
+
+.m-bulk-btn {
+  background: rgba(229, 193, 88, 0.15);
+  border: 1px solid var(--glass-border-gold);
+  color: var(--color-brass-light);
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  min-height: 36px;
+}
+
+/* Filter Chips Horizontal Scroll */
+.m-filter-scroll {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.m-chip {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border);
+  color: var(--text-secondary);
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  white-space: nowrap;
+  min-height: 30px;
+}
+
+.m-chip.active {
+  background: var(--color-gold-gradient);
+  color: #000;
+  font-weight: 700;
+  border: none;
+}
+
+/* Main Content Views Panel */
+.m-content {
+  padding: 10px 10px;
+  position: relative;
+  z-index: 10;
+}
+
+/* Month Grid View */
+.m-month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+}
+
+.m-weekday {
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  padding: 4px 0;
+}
+.m-weekday.sun { color: #f43f5e; }
+.m-weekday.sat { color: #38bdf8; }
+
+.m-day-cell {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  min-height: 58px;
+  padding: 3px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.m-day-cell.today {
+  border: 1.5px solid var(--color-brass);
+  background: rgba(229, 193, 88, 0.12);
+}
+
+.m-day-cell.selected {
+  border: 1.5px solid var(--color-brass-light);
+  box-shadow: inset 0 0 10px rgba(229, 193, 88, 0.3);
+}
+
+.m-day-cell.other-month { opacity: 0.25; }
+
+.m-day-num {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.m-day-events {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.m-event-dot {
+  font-size: 0.6rem;
+  padding: 1px 3px;
+  border-radius: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 600;
+}
+
+.m-dot-合奏 { background: rgba(229, 193, 88, 0.2); color: var(--color-brass-light); border: 1px solid rgba(229, 193, 88, 0.4); }
+.m-dot-パート練習 { background: rgba(16, 185, 129, 0.2); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.4); }
+.m-dot-個人練習 { background: rgba(59, 130, 246, 0.2); color: #93c5fd; }
+.m-dot-本番 { background: rgba(244, 63, 94, 0.2); color: #fda4af; }
+.m-dot-その他 { background: rgba(168, 85, 247, 0.2); color: #d8b4fe; }
+
+/* Selected Day Sheet Card */
+.m-day-sheet-card {
+  background: var(--bg-surface);
+  border: 1.5px solid var(--glass-border-gold);
+  border-radius: 14px;
+  padding: 14px;
+  margin-top: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+/* Practice Card Mobile Portrait Styling */
+.m-practice-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+.m-card-title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.m-badge {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.m-piece-item {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  padding: 10px;
+  margin-top: 8px;
+}
+
+.m-slot-item {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-top: 6px;
+}
+
+/* Buttons System */
+.m-btn-yt-highlight {
+  display: flex !important;
+  width: 100% !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: var(--color-yt-gradient) !important;
+  color: #fff !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  padding: 10px 12px !important;
+  border-radius: 10px !important;
+  font-size: 0.88rem !important;
+  font-weight: 700 !important;
+  min-height: 42px !important;
+  margin-top: 6px !important;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3) !important;
+}
+
+.m-btn-gold {
+  background: var(--color-gold-gradient);
+  color: #000;
+  font-weight: 800;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 0.9rem;
+  min-height: 44px;
+
+}
+
+.m-btn-glass {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--glass-border);
+  color: var(--text-primary);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 0.88rem;
+  min-height: 42px;
+
+}
+
+.m-btn-line {
+  background: #06C755;
+  color: #fff;
+  font-weight: 800;
+  border: none;
+  border-radius: 10px;
+  padding: 12px;
+  font-size: 0.9rem;
+  min-height: 44px;
+
+}
+
+.m-btn-danger {
+  background: rgba(244, 63, 94, 0.2);
+  border: 1px solid rgba(244, 63, 94, 0.4);
+  color: #fda4af;
+  border-radius: 10px;
+  padding: 10px;
+  font-size: 0.85rem;
+  min-height: 40px;
+
+}
+
+.m-btn-sm {
+  padding: 4px 8px;
+  font-size: 0.75rem;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--glass-border);
+  color: var(--text-primary);
+  border-radius: 6px;
+
+}
+
+.m-action-btn-gold {
+  background: var(--color-gold-gradient);
+  color: #000;
+  font-weight: 700;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+
+}
+
+/* Native Fixed Bottom Navigation Dock */
+.m-bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100vw;
+  height: 64px;
+  background: rgba(8, 12, 20, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid var(--glass-border);
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  z-index: 900;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.m-nav-item {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
+
+}
+
+.m-nav-item.active {
+  color: var(--color-brass-light);
+}
+
+.m-nav-icon {
+  font-size: 1.2rem;
+}
+
+.m-nav-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+}
+
+.m-nav-add {
+  position: relative;
+  top: -12px;
+}
+
+.m-add-circle {
+  width: 46px;
+  height: 46px;
+  background: var(--color-gold-gradient);
+  color: #000;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+  font-weight: 900;
+  box-shadow: 0 4px 14px rgba(229, 193, 88, 0.5);
+}
+
+/* Bottom Sheet Modal System */
+.m-sheet-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  z-index: 2000;
+  display: flex;
+  align-items: flex-end;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.m-sheet-backdrop.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.m-sheet-content {
+  width: 100vw;
+  max-height: 90vh;
+  background: var(--bg-surface);
+  border-top: 1.5px solid var(--glass-border-gold);
+  border-radius: 20px 20px 0 0;
+  padding: 12px 14px 24px 14px;
+  transform: translateY(100%);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow-y: auto;
+
+}
+
+.m-sheet-backdrop.active .m-sheet-content {
+  transform: translateY(0);
+}
+
+.m-sheet-handle {
+  width: 40px;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+  margin: 0 auto 10px auto;
+}
+
+.m-sheet-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.m-sheet-header h3 {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--color-brass-light);
+}
+
+.m-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.5rem;
+  padding: 2px 8px;
+}
+
+/* Mobile Inputs */
+.m-form-group {
+  margin-bottom: 10px;
+}
+
+.m-form-group label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.m-input {
+  width: 100%;
+  padding: 10px 12px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 0.88rem;
+  min-height: 42px;
+}
+
+textarea.m-input {
+  min-height: 80px;
+  resize: vertical;
+}
