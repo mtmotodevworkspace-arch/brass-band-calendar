@@ -1,5 +1,5 @@
 /**
- * 吹奏楽専用カレンダー Web App メインロジック (Brass Band Practice Calendar App)
+ * 吹奏楽専用カレンダー Web App メインロジック (Brass Band Practice Calendar App - Mobile Optimized)
  */
 
 import { INITIAL_PRACTICE_DATA, MASTER_REPERTOIRE } from './sample-data.js';
@@ -10,6 +10,7 @@ let repertoire = [];
 let currentDate = new Date();
 let currentView = 'month'; // 'month' | 'week' | 'day' | 'timetable' | 'repertoire'
 let selectedCategory = 'all';
+let selectedDateForMobileSheet = null;
 let activePracticeForExport = null;
 let highestZIndex = 5000;
 
@@ -97,6 +98,7 @@ function setupEventListeners() {
   document.getElementById('btnNext').addEventListener('click', () => navigateDate(1));
   document.getElementById('btnToday').addEventListener('click', () => {
     currentDate = new Date();
+    selectedDateForMobileSheet = formatDate(currentDate);
     render();
   });
 
@@ -245,13 +247,24 @@ function updatePeriodTitleText() {
 }
 
 /* ==========================================================================
-   View 1 & 2: Month & Week Views
+   View 1 & 2: Month & Week Views (Mobile Day Preview Sheet Included)
    ========================================================================== */
 function renderMonthView() {
-  const monthGrid = document.querySelector('.calendar-month-grid');
-  while (monthGrid.children.length > 7) {
-    monthGrid.removeChild(monthGrid.lastChild);
-  }
+  const monthPanel = document.getElementById('monthView');
+  monthPanel.innerHTML = `
+    <div class="calendar-month-grid">
+      <div class="weekday-header sun">日</div>
+      <div class="weekday-header">月</div>
+      <div class="weekday-header">火</div>
+      <div class="weekday-header">水</div>
+      <div class="weekday-header">木</div>
+      <div class="weekday-header">金</div>
+      <div class="weekday-header sat">土</div>
+    </div>
+    <div id="mobileDaySheetContainer"></div>
+  `;
+
+  const monthGrid = monthPanel.querySelector('.calendar-month-grid');
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -261,6 +274,9 @@ function renderMonthView() {
   const prevLastDate = new Date(year, month, 0).getDate();
 
   const todayStr = formatDate(new Date());
+  if (!selectedDateForMobileSheet) {
+    selectedDateForMobileSheet = todayStr;
+  }
 
   for (let i = firstDayIndex; i > 0; i--) {
     const dayNum = prevLastDate - i + 1;
@@ -271,13 +287,14 @@ function renderMonthView() {
   for (let day = 1; day <= lastDate; day++) {
     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     const isToday = dateStr === todayStr;
+    const isSelected = dateStr === selectedDateForMobileSheet;
     
     let dayEvents = practices.filter(p => p.date === dateStr);
     if (selectedCategory !== 'all') {
       dayEvents = dayEvents.filter(p => p.category === selectedCategory);
     }
 
-    const cell = createDayCell(day, false, isToday, dateStr, dayEvents);
+    const cell = createDayCell(day, false, isToday, dateStr, dayEvents, isSelected);
     monthGrid.appendChild(cell);
   }
 
@@ -287,20 +304,20 @@ function renderMonthView() {
     const cell = createDayCell(j, true);
     monthGrid.appendChild(cell);
   }
+
+  renderMobileDaySheet();
 }
 
-function createDayCell(dayNumber, isOtherMonth, isToday = false, dateStr = null, dayEvents = []) {
+function createDayCell(dayNumber, isOtherMonth, isToday = false, dateStr = null, dayEvents = [], isSelected = false) {
   const cell = document.createElement('div');
-  cell.className = `calendar-day-cell ${isOtherMonth ? 'other-month' : ''} ${isToday ? 'today' : ''}`;
+  cell.className = `calendar-day-cell ${isOtherMonth ? 'other-month' : ''} ${isToday ? 'today' : ''} ${isSelected ? 'selected' : ''}`;
   
   if (dateStr) {
     cell.dataset.date = dateStr;
     cell.addEventListener('click', () => {
+      selectedDateForMobileSheet = dateStr;
       currentDate = new Date(dateStr);
-      currentView = 'day';
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-      document.querySelector('.tab-btn[data-view="day"]').classList.add('active');
-      render();
+      renderMonthView();
     });
   }
 
@@ -325,6 +342,40 @@ function createDayCell(dayNumber, isOtherMonth, isToday = false, dateStr = null,
 
   cell.appendChild(eventsList);
   return cell;
+}
+
+function renderMobileDaySheet() {
+  const sheetContainer = document.getElementById('mobileDaySheetContainer');
+  if (!sheetContainer) return;
+
+  const targetDateStr = selectedDateForMobileSheet || formatDate(currentDate);
+  let dayEvents = practices.filter(p => p.date === targetDateStr);
+
+  if (selectedCategory !== 'all') {
+    dayEvents = dayEvents.filter(p => p.category === selectedCategory);
+  }
+
+  if (dayEvents.length === 0) {
+    sheetContainer.innerHTML = `
+      <div class="mobile-day-sheet" style="text-align: center; color: var(--text-muted);">
+        <div style="font-size: 0.9rem; font-weight: 700; color: var(--color-brass-light);">📅 ${targetDateStr} の予定</div>
+        <p style="font-size: 0.8rem; margin-top: 6px;">この日の練習予定はありません。</p>
+      </div>
+    `;
+    return;
+  }
+
+  sheetContainer.innerHTML = `
+    <div class="mobile-day-sheet">
+      <div style="font-size: 1rem; font-weight: 700; color: var(--color-brass-light); margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+        <span>📅 ${targetDateStr} の練習詳細</span>
+        <button class="btn-glass btn-sm" onclick="document.querySelectorAll('.tab-btn[data-view=\\'day\\']')[0].click()">日表示で開く ➔</button>
+      </div>
+      ${dayEvents.map(evt => renderPracticeCardHtml(evt)).join('')}
+    </div>
+  `;
+
+  attachPracticeCardEvents(sheetContainer);
 }
 
 function renderWeekView() {
@@ -453,7 +504,7 @@ function renderRepertoireCardsHtml(songList) {
 
   return songList.map(song => {
     const videoBtnsHtml = (song.videos || []).map((v, idx) => `
-      <button class="btn-glass btn-sm btn-play-rep-video" data-songid="${song.id}" data-vididx="${idx}" style="color: #ff4e4e; border-color: rgba(255,78,78,0.4);">
+      <button class="btn-glass btn-sm btn-yt-highlight btn-play-rep-video" data-songid="${song.id}" data-vididx="${idx}">
         🎬 ${escapeHtml(v.title || `演奏動画 ${idx+1}`)}
       </button>
     `).join('');
@@ -483,7 +534,7 @@ function renderRepertoireCardsHtml(songList) {
         ` : ''}
 
         ${videoBtnsHtml ? `
-          <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;">
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px;">
             ${videoBtnsHtml}
           </div>
         ` : ''}
@@ -652,21 +703,26 @@ function handleDeleteSong() {
 function renderPracticeCardHtml(practice, showDateBadge = false) {
   const mapUrl = getGoogleMapsUrl(practice.locationName, practice.locationAddress);
 
+  // Main practice pieces section with prominent red/gold YouTube video buttons
   const piecesHtml = (practice.pieces || []).map(piece => {
-    const videos = piece.videos || (piece.youtubeUrl ? [{ title: '参考音源 (YouTube)', url: piece.youtubeUrl }] : []);
-    
-    let videoTabsHtml = '';
-    if (videos.length > 0) {
-      videoTabsHtml = `
-        <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px;">
-          ${videos.map((v, idx) => `
-            <button class="btn-glass btn-sm btn-play-card-video" data-songtitle="${escapeHtml(piece.title)}" data-piece-json='${JSON.stringify(videos).replace(/'/g, "&apos;")}' data-idx="${idx}" style="color: #ff4e4e; border-color: rgba(255,78,78,0.4);">
-              🎬 ${escapeHtml(v.title || `動画 ${idx+1}`)}
-            </button>
-          `).join('')}
-        </div>
-      `;
+    const matchedRepSong = repertoire.find(s => s.title === piece.title);
+    let videos = piece.videos && piece.videos.length > 0 ? [...piece.videos] : [];
+    if (videos.length === 0 && matchedRepSong && matchedRepSong.videos) {
+      videos = [...matchedRepSong.videos];
     }
+    if (videos.length === 0) {
+      videos = [{ title: `${piece.title} 吹奏楽参考音源`, url: `https://www.youtube.com/results?search_query=${encodeURIComponent(piece.title + ' 吹奏楽')}` }];
+    }
+    
+    const videoTabsHtml = `
+      <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px;">
+        ${videos.map((v, idx) => `
+          <button class="btn-glass btn-sm btn-yt-highlight btn-play-card-video" data-songtitle="${escapeHtml(piece.title)}" data-piece-json='${JSON.stringify(videos).replace(/'/g, "&apos;")}' data-idx="${idx}">
+            🎬 ${escapeHtml(v.title || `演奏動画 ${idx+1}`)}
+          </button>
+        `).join('')}
+      </div>
+    `;
 
     return `
       <div class="piece-card">
@@ -680,19 +736,20 @@ function renderPracticeCardHtml(practice, showDateBadge = false) {
     `;
   }).join('');
 
+  // Timetable Hourly Slots with YouTube player buttons
   const timetableHtml = (practice.timetable || []).map(slot => {
     const assignedSongs = (slot.pieceIds || []).map(songId => repertoire.find(s => s.id === songId)).filter(Boolean);
 
     const slotSongsHtml = assignedSongs.map(song => {
       const vList = song.videos || [];
-      const ytBtn = vList.length > 0 ? `
-        <button class="btn-glass btn-sm btn-play-slot-video" data-songtitle="${escapeHtml(song.title)}" data-videos='${JSON.stringify(vList).replace(/'/g, "&apos;")}' style="padding: 2px 8px; font-size: 0.72rem; color: #ff4e4e; border-color: rgba(255,78,78,0.4);">
+      const ytBtn = `
+        <button class="btn-glass btn-sm btn-yt-highlight btn-play-slot-video" data-songtitle="${escapeHtml(song.title)}" data-videos='${JSON.stringify(vList).replace(/'/g, "&apos;")}' style="padding: 4px 10px; font-size: 0.78rem;">
           🎬 YouTube再生
         </button>
-      ` : '';
+      `;
 
       return `
-        <div style="display: inline-flex; align-items: center; gap: 6px; background: rgba(229,193,88,0.12); border: 1px solid var(--glass-border-gold); padding: 3px 8px; border-radius: var(--radius-sm); font-size: 0.8rem;">
+        <div style="display: inline-flex; align-items: center; gap: 6px; background: rgba(229,193,88,0.14); border: 1px solid var(--glass-border-gold); padding: 4px 10px; border-radius: var(--radius-sm); font-size: 0.82rem; margin-top: 4px; flex-wrap: wrap;">
           <span>🎼 <strong>${escapeHtml(song.title)}</strong></span>
           ${ytBtn}
         </div>
@@ -705,30 +762,30 @@ function renderPracticeCardHtml(practice, showDateBadge = false) {
         <div class="event-badge badge-${slot.category || 'その他'}">${escapeHtml(slot.category || '区分')}</div>
         <div class="time-slot-desc">
           <strong>${escapeHtml(slot.title || '')}</strong> ${slot.details ? `<span style="color: var(--text-muted);">(${escapeHtml(slot.details)})</span>` : ''}
-          ${slotSongsHtml ? `<div style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px;">${slotSongsHtml}</div>` : ''}
+          ${slotSongsHtml ? `<div style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 8px;">${slotSongsHtml}</div>` : ''}
         </div>
       </div>
     `;
   }).join('');
 
   return `
-    <div class="practice-card glass-panel" data-cat="${practice.category}" id="card-${practice.id}" style="margin-bottom: 20px;">
+    <div class="practice-card glass-panel" data-cat="${practice.category}" id="card-${practice.id}">
       <div class="card-header-main">
         <div class="card-title-group">
-          <h2>${escapeHtml(practice.title)}</h2>
-          ${showDateBadge ? `<div style="font-size: 0.9rem; color: var(--color-brass-light); font-weight: 700; margin-top: 4px;">📅 ${practice.date}</div>` : ''}
+          <h2 style="font-size: 1.15rem;">${escapeHtml(practice.title)}</h2>
+          ${showDateBadge ? `<div style="font-size: 0.88rem; color: var(--color-brass-light); font-weight: 700; margin-top: 2px;">📅 ${practice.date}</div>` : ''}
         </div>
         <div class="card-meta-badges">
           <span class="event-badge badge-${practice.category}">${practice.category}</span>
         </div>
       </div>
 
-      <div class="card-meta-row">
+      <div class="card-meta-row" style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 10px; font-size: 0.85rem;">
         ${practice.locationName ? `
           <div class="meta-item">
             📍 <span>${escapeHtml(practice.locationName)}</span>
             <a href="${mapUrl}" target="_blank" class="btn-glass btn-sm" style="margin-left: 6px; padding: 2px 8px; font-size: 0.75rem;">
-              🗺️ GoogleMap
+              🗺️ Map
             </a>
           </div>
         ` : ''}
@@ -736,28 +793,28 @@ function renderPracticeCardHtml(practice, showDateBadge = false) {
       </div>
 
       ${piecesHtml ? `
-        <div class="pieces-section">
-          <div class="section-title">🎼 練習曲 & ポイント</div>
+        <div class="pieces-section" style="margin-top: 12px;">
+          <div class="section-title" style="font-size: 0.88rem; color: var(--color-brass-light); font-weight: 700;">🎼 練習曲 & 参考音源 (YouTube)</div>
           ${piecesHtml}
         </div>
       ` : ''}
 
       ${timetableHtml ? `
         <div class="timetable-slots">
-          <div class="section-title" style="margin-top: 16px;">⏱️ 練習時間割 (曲目・YouTube動画直通)</div>
+          <div class="section-title" style="margin-top: 14px; font-size: 0.88rem; color: var(--color-brass-light); font-weight: 700;">⏱️ 練習時間割</div>
           ${timetableHtml}
         </div>
       ` : ''}
 
       ${practice.generalNotes ? `
-        <div style="margin-top: 14px; padding: 10px 14px; background: rgba(229,193,88,0.08); border-radius: var(--radius-sm); border: 1px dashed var(--glass-border-gold); font-size: 0.85rem; color: var(--text-secondary);">
+        <div style="margin-top: 12px; padding: 10px; background: rgba(229,193,88,0.08); border-radius: var(--radius-sm); border: 1px dashed var(--glass-border-gold); font-size: 0.82rem; color: var(--text-secondary);">
           ℹ️ ${escapeHtml(practice.generalNotes)}
         </div>
       ` : ''}
 
-      <div class="card-actions-bar">
+      <div class="card-actions-bar" style="display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap;">
         <button class="btn-glass btn-sm btn-share-practice" data-id="${practice.id}">
-          📲 カレンダー追加 & LINE共有
+          📲 LINE共有
         </button>
         <button class="btn-glass btn-sm btn-edit-practice" data-id="${practice.id}" style="margin-left: auto; font-weight: 700;">
           ✏️ 編集
@@ -1112,7 +1169,7 @@ function openYoutubeMultiVideoModal(songTitle, videos = [], activeIdx = 0) {
     </div>
 
     <div style="margin-top: 16px; text-align: center; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
-      <a href="${directLinkUrl}" target="_blank" class="btn-glass btn-sm" style="color: #ff4e4e; border-color: rgba(255,78,78,0.4);">
+      <a href="${directLinkUrl}" target="_blank" class="btn-glass btn-sm btn-yt-highlight" style="width: 100%; font-size: 0.9rem; padding: 12px;">
         🎬 YouTubeアプリ/ブラウザで「${escapeHtml(songTitle)}」を開く
       </a>
     </div>
@@ -1129,7 +1186,7 @@ function openYoutubeMultiVideoModal(songTitle, videos = [], activeIdx = 0) {
 }
 
 /* ==========================================================================
-   Bulk Date Range Export & LINE Sharing Logic (期間指定一括他カレンダー連携)
+   Bulk Date Range Export & LINE Sharing Logic
    ========================================================================== */
 function openBulkExportModal() {
   setBulkPreset('augSep');
