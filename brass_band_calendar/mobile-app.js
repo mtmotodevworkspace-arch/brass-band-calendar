@@ -1,14 +1,13 @@
 /**
  * 吹奏楽専用カレンダー Smartphone App Main Logic (mobile-app.js)
- * View-Only Mode & Admin Mode + Aggressive "先生" Storage Scrubber
+ * View-Only Mode (閲覧専用・デフォルト) & Admin Mode (管理者用) + Hard Reset for "先生"
  */
 
 import { INITIAL_PRACTICE_DATA, MASTER_REPERTOIRE } from './sample-data.js';
 
 // Storage Keys
-const PERMANENT_STORAGE_KEY_PRACTICES = 'brass_band_calendar_practices_v8';
-const PERMANENT_STORAGE_KEY_REPERTOIRE = 'brass_band_calendar_repertoire_v8';
-const ADMIN_MODE_STORAGE_KEY = 'brass_band_calendar_is_admin';
+const PERMANENT_STORAGE_KEY_PRACTICES = 'brass_band_calendar_practices_v9';
+const PERMANENT_STORAGE_KEY_REPERTOIRE = 'brass_band_calendar_repertoire_v9';
 
 // Global State
 let practices = [];
@@ -17,45 +16,38 @@ let currentDate = new Date();
 let currentView = 'month';
 let selectedCategory = 'all';
 let selectedDateForMobileSheet = null;
+
+// Admin Mode defaults strictly to FALSE (閲覧専用) for all visitors
 let isAdminMode = false;
 
 document.addEventListener('DOMContentLoaded', () => {
-  wipeSenseiFromAllLocalStorage();
+  hardPurgeSenseiFromLocalStorage();
   initStorage();
   checkAdminMode();
   setupMobileEventListeners();
   renderMobile();
 });
 
-function wipeSenseiFromAllLocalStorage() {
+function hardPurgeSenseiFromLocalStorage() {
   try {
-    const keysToClean = [];
-    for (let i = 0; i < localStorage.length; i++) {
+    for (let i = localStorage.length - 1; i >= 0; i--) {
       const k = localStorage.key(i);
       if (k && (k.includes('brass') || k.includes('repertoire') || k.includes('practice'))) {
-        keysToClean.push(k);
+        const val = localStorage.getItem(k);
+        if (val && val.includes('先生')) {
+          localStorage.removeItem(k);
+        }
       }
     }
-
-    keysToClean.forEach(k => {
-      let val = localStorage.getItem(k);
-      if (val && val.includes('先生')) {
-        val = val.replace(/\s*先生/g, '');
-        localStorage.setItem(k, val);
-      }
-    });
-  } catch (e) {
-    console.error('Scrubber error:', e);
-  }
+  } catch (e) {}
 }
 
 function checkAdminMode() {
   const urlParams = new URLSearchParams(window.location.search);
   if (urlParams.get('admin') === '1') {
     isAdminMode = true;
-    localStorage.setItem(ADMIN_MODE_STORAGE_KEY, 'true');
   } else {
-    isAdminMode = localStorage.getItem(ADMIN_MODE_STORAGE_KEY) === 'true';
+    isAdminMode = sessionStorage.getItem('brass_band_is_admin') === 'true';
   }
   updateAdminModeUi();
 }
@@ -65,13 +57,23 @@ function updateAdminModeUi() {
   if (badge) {
     if (isAdminMode) {
       badge.innerHTML = `🔑 <span style="color:#fef08a;">管理者モード (編集可)</span>`;
+      badge.style.background = 'rgba(239, 68, 68, 0.25)';
+      badge.style.borderColor = 'rgba(239, 68, 68, 0.6)';
     } else {
       badge.innerHTML = `👁️ <span style="color:#cbd5e1;">閲覧専用モード</span>`;
+      badge.style.background = 'rgba(255, 255, 255, 0.08)';
+      badge.style.borderColor = 'var(--glass-border-gold)';
     }
   }
 
   document.querySelectorAll('.admin-only').forEach(el => {
-    el.style.display = isAdminMode ? '' : 'none';
+    if (isAdminMode) {
+      el.style.display = '';
+      el.classList.remove('is-hidden');
+    } else {
+      el.style.display = 'none';
+      el.classList.add('is-hidden');
+    }
   });
 }
 
@@ -79,7 +81,7 @@ function promptAdminLogin() {
   if (isAdminMode) {
     if (confirm('管理者モードを終了し、閲覧専用モード（団員配布用）に戻しますか？')) {
       isAdminMode = false;
-      localStorage.setItem(ADMIN_MODE_STORAGE_KEY, 'false');
+      sessionStorage.setItem('brass_band_is_admin', 'false');
       updateAdminModeUi();
       renderMobile();
     }
@@ -87,7 +89,7 @@ function promptAdminLogin() {
     const code = prompt('管理者パスコードを入力してください:\n(初期パスコード: 1234)');
     if (code === '1234' || code === 'admin') {
       isAdminMode = true;
-      localStorage.setItem(ADMIN_MODE_STORAGE_KEY, 'true');
+      sessionStorage.setItem('brass_band_is_admin', 'true');
       alert('管理者モードにログインしました。編集権限が有効です。');
       updateAdminModeUi();
       renderMobile();
@@ -103,36 +105,33 @@ function initStorage() {
 
   try {
     const pData = localStorage.getItem(PERMANENT_STORAGE_KEY_PRACTICES);
-    if (pData) loadedPractices = JSON.parse(pData);
+    if (pData && !pData.includes('先生')) loadedPractices = JSON.parse(pData);
 
     const rData = localStorage.getItem(PERMANENT_STORAGE_KEY_REPERTOIRE);
-    if (rData) loadedRepertoire = JSON.parse(rData);
+    if (rData && !rData.includes('先生')) loadedRepertoire = JSON.parse(rData);
   } catch (e) {}
 
   practices = loadedPractices || JSON.parse(JSON.stringify(INITIAL_PRACTICE_DATA));
   repertoire = loadedRepertoire || JSON.parse(JSON.stringify(MASTER_REPERTOIRE));
 
-  deepSanitizeObjects(practices);
-  deepSanitizeObjects(repertoire);
+  sanitizeAllConductors(practices);
+  sanitizeAllConductors(repertoire);
   saveToStorage();
 }
 
-function deepSanitizeObjects(obj) {
-  if (!obj) return;
-  if (typeof obj === 'string') {
-    return obj.replace(/\s*先生/g, '').trim();
-  }
-  if (Array.isArray(obj)) {
-    obj.forEach((item, idx) => {
-      if (typeof item === 'string') obj[idx] = item.replace(/\s*先生/g, '').trim();
-      else if (typeof item === 'object') deepSanitizeObjects(item);
-    });
-  } else if (typeof obj === 'object') {
-    Object.keys(obj).forEach(key => {
-      if (typeof obj[key] === 'string') {
-        obj[key] = obj[key].replace(/\s*先生/g, '').trim();
-      } else if (typeof obj[key] === 'object') {
-        deepSanitizeObjects(obj[key]);
+function sanitizeAllConductors(target) {
+  const clean = (str) => {
+    if (!str) return '';
+    return str.replace(/\s*先生/g, '').trim();
+  };
+
+  if (Array.isArray(target)) {
+    target.forEach(item => {
+      if (item.conductor) item.conductor = clean(item.conductor);
+      if (item.conductors) item.conductors = clean(item.conductors);
+      if (item.points) item.points = clean(item.points);
+      if (item.pieces) {
+        item.pieces.forEach(p => { if (p.conductor) p.conductor = clean(p.conductor); });
       }
     });
   }
@@ -142,11 +141,7 @@ function saveToStorage() {
   try {
     localStorage.setItem(PERMANENT_STORAGE_KEY_PRACTICES, JSON.stringify(practices));
     localStorage.setItem(PERMANENT_STORAGE_KEY_REPERTOIRE, JSON.stringify(repertoire));
-    localStorage.setItem('brass_band_calendar_practices_permanent', JSON.stringify(practices));
-    localStorage.setItem('brass_band_calendar_repertoire_permanent', JSON.stringify(repertoire));
-  } catch (e) {
-    console.error('Mobile save error:', e);
-  }
+  } catch (e) {}
 }
 
 function setupMobileEventListeners() {
@@ -401,7 +396,7 @@ function renderMobileRepertoireView() {
   }
 
   container.innerHTML = repertoire.map(song => {
-    const cleanCond = (song.conductor || '未定').replace(/\s*先生/g, '');
+    const cleanCond = (song.conductor || '未定').replace(/\s*先生/g, '').trim();
     const videoBtnsHtml = (song.videos || []).map((v, idx) => `
       <button class="m-btn-yt-highlight btn-play-rep-video" data-songid="${song.id}" data-vididx="${idx}">
         🎬 ${escapeHtml(v.title || `演奏動画 ${idx+1}`)}

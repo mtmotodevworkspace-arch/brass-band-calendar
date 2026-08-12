@@ -1,6 +1,6 @@
 /**
- * 吹奏楽専用カレンダー Web App メインロジック (Brass Band Practice Calendar App - PC Version)
- * View-Only Mode (閲覧専用) & Admin Mode (管理者用) + Aggressive "先生" Storage Scrubber
+ * 吹奏楽専用カレンダー Web App メインロジック (PC版)
+ * View-Only Mode (閲覧専用・デフォルト) & Admin Mode (管理者用) + Hard Reset for "先生"
  */
 
 import { INITIAL_PRACTICE_DATA, MASTER_REPERTOIRE } from './sample-data.js';
@@ -9,20 +9,21 @@ import { INITIAL_PRACTICE_DATA, MASTER_REPERTOIRE } from './sample-data.js';
 let practices = [];
 let repertoire = [];
 let currentDate = new Date();
-let currentView = 'month'; // 'month' | 'week' | 'day' | 'timetable' | 'repertoire'
+let currentView = 'month';
 let selectedCategory = 'all';
 let selectedDateForMobileSheet = null;
 let activePracticeForExport = null;
 let highestZIndex = 5000;
+
+// Admin Mode defaults strictly to FALSE (閲覧専用) for all visitors
 let isAdminMode = false;
 
 // Storage Keys
-const PERMANENT_STORAGE_KEY_PRACTICES = 'brass_band_calendar_practices_v8';
-const PERMANENT_STORAGE_KEY_REPERTOIRE = 'brass_band_calendar_repertoire_v8';
-const ADMIN_MODE_STORAGE_KEY = 'brass_band_calendar_is_admin';
+const PERMANENT_STORAGE_KEY_PRACTICES = 'brass_band_calendar_practices_v9';
+const PERMANENT_STORAGE_KEY_REPERTOIRE = 'brass_band_calendar_repertoire_v9';
 
 document.addEventListener('DOMContentLoaded', () => {
-  wipeSenseiFromAllLocalStorage();
+  hardPurgeSenseiFromLocalStorage();
   initStorage();
   checkAdminMode();
   setupEventListeners();
@@ -30,27 +31,19 @@ document.addEventListener('DOMContentLoaded', () => {
   render();
 });
 
-/* Aggressive LocalStorage Scrubber for "先生" Removal */
-function wipeSenseiFromAllLocalStorage() {
+/* Hard Purge old localStorage data containing "先生" */
+function hardPurgeSenseiFromLocalStorage() {
   try {
-    const keysToClean = [];
-    for (let i = 0; i < localStorage.length; i++) {
+    for (let i = localStorage.length - 1; i >= 0; i--) {
       const k = localStorage.key(i);
       if (k && (k.includes('brass') || k.includes('repertoire') || k.includes('practice'))) {
-        keysToClean.push(k);
+        const val = localStorage.getItem(k);
+        if (val && val.includes('先生')) {
+          localStorage.removeItem(k);
+        }
       }
     }
-
-    keysToClean.forEach(k => {
-      let val = localStorage.getItem(k);
-      if (val && val.includes('先生')) {
-        val = val.replace(/\s*先生/g, '');
-        localStorage.setItem(k, val);
-      }
-    });
-  } catch (e) {
-    console.error('Scrubber error:', e);
-  }
+  } catch (e) {}
 }
 
 /* Admin / View-Only Mode Engine */
@@ -58,9 +51,9 @@ function checkAdminMode() {
   const urlParams = new URLSearchParams(window.location.search);
   if (urlParams.get('admin') === '1') {
     isAdminMode = true;
-    localStorage.setItem(ADMIN_MODE_STORAGE_KEY, 'true');
   } else {
-    isAdminMode = localStorage.getItem(ADMIN_MODE_STORAGE_KEY) === 'true';
+    // Default to View-Only (false) unless explicitly unlocked
+    isAdminMode = sessionStorage.getItem('brass_band_is_admin') === 'true';
   }
   updateAdminModeUi();
 }
@@ -69,20 +62,27 @@ function updateAdminModeUi() {
   const btnAdmin = document.getElementById('btnAdminToggle');
   if (btnAdmin) {
     if (isAdminMode) {
-      btnAdmin.innerHTML = `🔑 <span>管理者モード (全編集権限)</span>`;
-      btnAdmin.style.background = 'rgba(239, 68, 68, 0.2)';
-      btnAdmin.style.borderColor = 'rgba(239, 68, 68, 0.5)';
+      btnAdmin.innerHTML = `🔑 <span>管理者モード (編集可)</span>`;
+      btnAdmin.style.background = 'rgba(239, 68, 68, 0.25)';
+      btnAdmin.style.borderColor = 'rgba(239, 68, 68, 0.6)';
       btnAdmin.style.color = '#fda4af';
     } else {
       btnAdmin.innerHTML = `👁️ <span>閲覧専用モード (団員向け)</span>`;
-      btnAdmin.style.background = 'rgba(255, 255, 255, 0.06)';
-      btnAdmin.style.borderColor = 'var(--glass-border)';
-      btnAdmin.style.color = 'var(--text-secondary)';
+      btnAdmin.style.background = 'rgba(255, 255, 255, 0.08)';
+      btnAdmin.style.borderColor = 'var(--glass-border-gold)';
+      btnAdmin.style.color = 'var(--color-brass-light)';
     }
   }
 
+  // Hide or show all edit controls
   document.querySelectorAll('.admin-only').forEach(el => {
-    el.style.display = isAdminMode ? '' : 'none';
+    if (isAdminMode) {
+      el.style.display = '';
+      el.classList.remove('is-hidden');
+    } else {
+      el.style.display = 'none';
+      el.classList.add('is-hidden');
+    }
   });
 }
 
@@ -90,7 +90,7 @@ function promptAdminLogin() {
   if (isAdminMode) {
     if (confirm('管理者モードを終了し、閲覧専用モード（団員配布用）に戻しますか？')) {
       isAdminMode = false;
-      localStorage.setItem(ADMIN_MODE_STORAGE_KEY, 'false');
+      sessionStorage.setItem('brass_band_is_admin', 'false');
       updateAdminModeUi();
       render();
     }
@@ -98,8 +98,8 @@ function promptAdminLogin() {
     const code = prompt('管理者パスコードを入力してください:\n(初期パスコード: 1234)');
     if (code === '1234' || code === 'admin') {
       isAdminMode = true;
-      localStorage.setItem(ADMIN_MODE_STORAGE_KEY, 'true');
-      alert('管理者モードにログインしました。編集権限が有効です。');
+      sessionStorage.setItem('brass_band_is_admin', 'true');
+      alert('管理者モードにログインしました。練習予定や曲目の追加・編集が可能です。');
       updateAdminModeUi();
       render();
     } else if (code !== null) {
@@ -115,36 +115,33 @@ function initStorage() {
 
   try {
     const pData = localStorage.getItem(PERMANENT_STORAGE_KEY_PRACTICES);
-    if (pData) loadedPractices = JSON.parse(pData);
+    if (pData && !pData.includes('先生')) loadedPractices = JSON.parse(pData);
 
     const rData = localStorage.getItem(PERMANENT_STORAGE_KEY_REPERTOIRE);
-    if (rData) loadedRepertoire = JSON.parse(rData);
+    if (rData && !rData.includes('先生')) loadedRepertoire = JSON.parse(rData);
   } catch (e) {}
 
   practices = loadedPractices || JSON.parse(JSON.stringify(INITIAL_PRACTICE_DATA));
   repertoire = loadedRepertoire || JSON.parse(JSON.stringify(MASTER_REPERTOIRE));
 
-  deepSanitizeObjects(practices);
-  deepSanitizeObjects(repertoire);
+  sanitizeAllConductors(practices);
+  sanitizeAllConductors(repertoire);
   saveToStorage();
 }
 
-function deepSanitizeObjects(obj) {
-  if (!obj) return;
-  if (typeof obj === 'string') {
-    return obj.replace(/\s*先生/g, '').trim();
-  }
-  if (Array.isArray(obj)) {
-    obj.forEach((item, idx) => {
-      if (typeof item === 'string') obj[idx] = item.replace(/\s*先生/g, '').trim();
-      else if (typeof item === 'object') deepSanitizeObjects(item);
-    });
-  } else if (typeof obj === 'object') {
-    Object.keys(obj).forEach(key => {
-      if (typeof obj[key] === 'string') {
-        obj[key] = obj[key].replace(/\s*先生/g, '').trim();
-      } else if (typeof obj[key] === 'object') {
-        deepSanitizeObjects(obj[key]);
+function sanitizeAllConductors(target) {
+  const clean = (str) => {
+    if (!str) return '';
+    return str.replace(/\s*先生/g, '').trim();
+  };
+
+  if (Array.isArray(target)) {
+    target.forEach(item => {
+      if (item.conductor) item.conductor = clean(item.conductor);
+      if (item.conductors) item.conductors = clean(item.conductors);
+      if (item.points) item.points = clean(item.points);
+      if (item.pieces) {
+        item.pieces.forEach(p => { if (p.conductor) p.conductor = clean(p.conductor); });
       }
     });
   }
@@ -154,14 +151,9 @@ function saveToStorage() {
   try {
     localStorage.setItem(PERMANENT_STORAGE_KEY_PRACTICES, JSON.stringify(practices));
     localStorage.setItem(PERMANENT_STORAGE_KEY_REPERTOIRE, JSON.stringify(repertoire));
-    localStorage.setItem('brass_band_calendar_practices_permanent', JSON.stringify(practices));
-    localStorage.setItem('brass_band_calendar_repertoire_permanent', JSON.stringify(repertoire));
-  } catch (e) {
-    console.error('Error saving to storage:', e);
-  }
+  } catch (e) {}
 }
 
-/* Layer & View Controls */
 function bringToFront(el) {
   if (!el) return;
   highestZIndex += 20;
@@ -179,7 +171,6 @@ function setupZIndexLayerManagement() {
   }, true);
 }
 
-/* Navigation & Event Listeners */
 function setupEventListeners() {
   document.getElementById('btnPrev').addEventListener('click', () => navigateDate(-1));
   document.getElementById('btnNext').addEventListener('click', () => navigateDate(1));
@@ -211,10 +202,7 @@ function setupEventListeners() {
   });
 
   document.getElementById('btnAddPractice').addEventListener('click', () => {
-    if (!isAdminMode) {
-      if (confirm('練習スケジュールの登録は管理者専用機能です。\n管理者モードにログインしますか？')) promptAdminLogin();
-      return;
-    }
+    if (!isAdminMode) return promptAdminLogin();
     openPracticeModal();
   });
 
@@ -542,7 +530,9 @@ function renderRepertoireCardsHtml(songList) {
   if (!songList || songList.length === 0) return `<div style="padding: 20px; text-align: center; color: var(--text-muted);">曲目が登録されていません。</div>`;
 
   return songList.map(song => {
-    const cleanConductor = (song.conductor || '未定').replace(/\s*先生/g, '');
+    // Strictly strip out "先生"
+    const cleanConductor = (song.conductor || '未定').replace(/\s*先生/g, '').trim();
+
     const videoBtnsHtml = (song.videos || []).map((v, idx) => `
       <button class="btn-glass btn-sm btn-yt-highlight btn-play-rep-video" data-songid="${song.id}" data-vididx="${idx}">
         🎬 ${escapeHtml(v.title || `演奏動画 ${idx+1}`)}
