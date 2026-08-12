@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>吹奏楽練習カレンダー (スマホ専用版)</title>
+  <meta name="description" content="吹奏楽団・ブラスバンドのためのスマホ専用練習カレンダー＆時間割アプリ">
+  <meta name="theme-color" content="#080c14">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  
+  <link rel="stylesheet" href="mobile-style.css">
+</head>
+<body class="mobile-body">
+  <!-- Mobile Ambient Glow background -->
+  <div class="m-glow m-glow-1"></div>
+  <div class="m-glow m-glow-2"></div>
+
+  <div id="mobileApp">
+    <!-- Top Mobile Sticky Navigation Header -->
+    <header class="m-header">
+      <div class="m-brand-bar">
+        <div class="m-brand-left">
+          <span class="m-logo">🎼</span>
+          <span class="m-title">吹奏楽カレンダー</span>
+        </div>
+        <div class="m-brand-right">
+          <button id="mBtnBackup" class="m-icon-btn" title="データ管理">💾</button>
+          <a href="index.html?desktop=1" class="m-pc-link">💻 PC版</a>
+        </div>
+      </div>
+
+      <!-- Quick Date Switcher Bar -->
+      <div class="m-date-bar">
+        <button id="mBtnPrev" class="m-arrow-btn">◀</button>
+        <button id="mBtnToday" class="m-today-btn">今日</button>
+        <button id="mBtnNext" class="m-arrow-btn">▶</button>
+        <div id="mCurrentPeriodText" class="m-period-text">2026年 8月</div>
+        <button id="mBtnBulkExport" class="m-bulk-btn">📅 一括連携</button>
+      </div>
+
+      <!-- Category Filter Chips -->
+      <div class="m-filter-scroll">
+        <button class="m-chip active" data-cat="all">すべて</button>
+        <button class="m-chip" data-cat="合奏">合奏</button>
+        <button class="m-chip" data-cat="パート練習">パート</button>
+        <button class="m-chip" data-cat="個人練習">個人</button>
+        <button class="m-chip" data-cat="本番">本番</button>
+      </div>
+    </header>
+
+    <!-- Main Dynamic Content Views (Vertical Portrait Scrollable Area) -->
+    <main class="m-content">
+      <!-- 1. Month View -->
+      <section id="mMonthView" class="m-view-panel">
+        <div class="m-month-grid">
+          <div class="m-weekday sun">日</div>
+          <div class="m-weekday">月</div>
+          <div class="m-weekday">火</div>
+          <div class="m-weekday">水</div>
+          <div class="m-weekday">木</div>
+          <div class="m-weekday">金</div>
+          <div class="m-weekday sat">土</div>
+          <!-- Days populated dynamically by mobile-app.js -->
+        </div>
+
+        <!-- Selected Day Rehearsal Sheet Card (Appears on Day Tap) -->
+        <div id="mDaySheetContainer"></div>
+      </section>
+
+      <!-- 2. Day View -->
+      <section id="mDayView" class="m-view-panel" style="display: none;">
+        <div id="mDayViewContent"></div>
+      </section>
+
+      <!-- 3. Timetable View -->
+      <section id="mTimetableView" class="m-view-panel" style="display: none;">
+        <div id="mTimetableContent"></div>
+      </section>
+
+      <!-- 4. Repertoire Library View -->
+      <section id="mRepertoireView" class="m-view-panel" style="display: none;">
+        <div class="m-rep-header-card">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h2 style="font-size: 1.1rem; color: var(--color-brass-light); font-weight: 800;">🎼 演奏曲目ライブラリ</h2>
+            <button id="mBtnAddNewSong" class="m-action-btn-gold">+ 曲を追加</button>
+          </div>
+          <p style="font-size: 0.78rem; color: var(--text-muted); margin-top: 4px;">
+            全12曲の演奏プログラム・指揮者・YouTube参考動画
+          </p>
+        </div>
+        <div id="mRepertoireContent"></div>
+      </section>
+    </main>
+
+    <!-- Native-Style Fixed Bottom Dock Navigation Bar -->
+    <nav class="m-bottom-nav">
+      <button class="m-nav-item active" data-view="month">
+        <span class="m-nav-icon">📅</span>
+        <span class="m-nav-label">月表示</span>
+      </button>
+      <button class="m-nav-item" data-view="day">
+        <span class="m-nav-icon">📋</span>
+        <span class="m-nav-label">日表示</span>
+      </button>
+      <button class="m-nav-item m-nav-add" id="mBtnAddPractice">
+        <span class="m-add-circle">+</span>
+      </button>
+      <button class="m-nav-item" data-view="timetable">
+        <span class="m-nav-icon">⏱️</span>
+        <span class="m-nav-label">時間割</span>
+      </button>
+      <button class="m-nav-item" data-view="repertoire">
+        <span class="m-nav-icon">🎼</span>
+        <span class="m-nav-label">曲目</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- Bottom Sheet Modals System for Mobile -->
+
+  <!-- Modal 1: Practice Form Bottom Sheet -->
+  <div id="mPracticeModal" class="m-sheet-backdrop">
+    <div class="m-sheet-content">
+      <div class="m-sheet-handle"></div>
+      <div class="m-sheet-header">
+        <h3 id="mModalTitle">📅 練習スケジュールの登録</h3>
+        <button class="m-close-btn" data-close="mPracticeModal">&times;</button>
+      </div>
+      <form id="mPracticeForm" class="m-sheet-body">
+        <input type="hidden" id="mPracticeId">
+        
+        <div class="m-form-group">
+          <label>📅 練習日 *</label>
+          <input type="date" id="mInputDate" class="m-input" required>
+        </div>
+        
+        <div class="m-form-group">
+          <label>🏷️ 区分 *</label>
+          <select id="mInputCategory" class="m-input" required>
+            <option value="合奏">合奏 (全体練習)</option>
+            <option value="パート練習">パート練習</option>
+            <option value="個人練習">個人練習</option>
+            <option value="本番">本番・演奏会</option>
+            <option value="その他">その他・お休み</option>
+          </select>
+        </div>
+
+        <div class="m-form-group">
+          <label>✏️ 練習タイトル *</label>
+          <input type="text" id="mInputTitle" class="m-input" placeholder="例: 通常練習" required>
+        </div>
+
+        <div class="m-form-group">
+          <label>📍 場所・部屋名</label>
+          <input type="text" id="mInputLocationName" class="m-input" placeholder="例: 日章福祉交流センター 会議室①">
+        </div>
+
+        <div class="m-form-group">
+          <label>👨‍🏫 指揮・指導者</label>
+          <input type="text" id="mInputConductors" class="m-input" placeholder="例: 公文 先生">
+        </div>
+
+        <!-- Practice Pieces -->
+        <div class="m-form-group">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <label>🎼 練習曲目</label>
+            <button type="button" id="mBtnAddPieceRow" class="m-btn-sm">+ 曲を追加</button>
+          </div>
+          <div id="mPiecesContainer"></div>
+        </div>
+
+        <!-- Timetable Slots -->
+        <div class="m-form-group">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <label>⏱️ 時間割</label>
+            <button type="button" id="mBtnAddTimetableRow" class="m-btn-sm">+ 枠を追加</button>
+          </div>
+          <div id="mTimetableContainer"></div>
+        </div>
+
+        <div class="m-form-group">
+          <label>📝 連絡事項・備考</label>
+          <textarea id="mInputNotes" class="m-input" placeholder="持ち物、遅刻連絡など"></textarea>
+        </div>
+
+        <div style="display: flex; gap: 8px; margin-top: 16px;">
+          <button type="button" class="m-btn-glass" data-close="mPracticeModal" style="flex:1;">キャンセル</button>
+          <button type="submit" class="m-btn-gold" style="flex:2;">✔ 保存する</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal 2: Repertoire Song Edit Bottom Sheet -->
+  <div id="mEditSongModal" class="m-sheet-backdrop">
+    <div class="m-sheet-content">
+      <div class="m-sheet-handle"></div>
+      <div class="m-sheet-header">
+        <h3 id="mEditSongTitleText">✏️ 演奏曲目の編集</h3>
+        <button class="m-close-btn" data-close="mEditSongModal">&times;</button>
+      </div>
+      <form id="mEditSongForm" class="m-sheet-body">
+        <input type="hidden" id="mEditSongId">
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <div class="m-form-group">
+            <label>区分 *</label>
+            <select id="mEditSongSection" class="m-input">
+              <option value="第1部">第1部</option>
+              <option value="第2部">第2部</option>
+              <option value="Enc">アンコール (Enc)</option>
+              <option value="その他">その他</option>
+            </select>
+          </div>
+          <div class="m-form-group">
+            <label>No *</label>
+            <input type="text" id="mEditSongNo" class="m-input" placeholder="例: OP, 1" required>
+          </div>
+        </div>
+
+        <div class="m-form-group">
+          <label>曲名 *</label>
+          <input type="text" id="mEditSongTitle" class="m-input" required>
+        </div>
+
+        <div class="m-form-group">
+          <label>作曲者・編曲者</label>
+          <input type="text" id="mEditSongComposer" class="m-input">
+        </div>
+
+        <div class="m-form-group">
+          <label>👨‍🏫 指揮・指導者氏名</label>
+          <input type="text" id="mEditSongConductor" class="m-input">
+        </div>
+
+        <div class="m-form-group">
+          <label>練習のポイント</label>
+          <textarea id="mEditSongPoints" class="m-input"></textarea>
+        </div>
+
+        <div class="m-form-group">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <label>🎬 YouTube動画URL</label>
+            <button type="button" id="mBtnAddSongVideoRow" class="m-btn-sm">+ 動画追加</button>
+          </div>
+          <div id="mSongVideosContainer"></div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 16px;">
+          <button type="submit" class="m-btn-gold" style="width:100%;">✔ 保存する</button>
+          <button type="button" class="m-btn-glass" data-close="mEditSongModal" style="width:100%;">キャンセル</button>
+          <button type="button" id="mBtnDeleteSong" class="m-btn-danger" style="display:none; width:100%;">🗑️ 削除する</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal 3: Detail & YouTube Player Bottom Sheet -->
+  <div id="mDetailModal" class="m-sheet-backdrop">
+    <div class="m-sheet-content">
+      <div class="m-sheet-handle"></div>
+      <div class="m-sheet-header">
+        <h3>ℹ️ 練習詳細 & 参考音源</h3>
+        <button class="m-close-btn" data-close="mDetailModal">&times;</button>
+      </div>
+      <div id="mDetailModalBody" class="m-sheet-body"></div>
+    </div>
+  </div>
+
+  <!-- Modal 4: Bulk Export & Calendar Share Bottom Sheet -->
+  <div id="mBulkModal" class="m-sheet-backdrop">
+    <div class="m-sheet-content">
+      <div class="m-sheet-handle"></div>
+      <div class="m-sheet-header">
+        <h3>📅 期間一括連携 & LINE共有</h3>
+        <button class="close-modal-btn" data-close="mBulkModal">&times;</button>
+      </div>
+      <div class="m-sheet-body">
+        <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); padding: 12px; border-radius: 10px; margin-bottom: 14px;">
+          <label style="font-size: 0.82rem; font-weight: 700; color: var(--color-brass-light);">🗓️ 期間選択</label>
+          <div style="display: flex; gap: 4px; margin: 8px 0; flex-wrap: wrap;">
+            <button id="mPresetThisMonth" class="m-btn-sm">今月</button>
+            <button id="mPresetNextMonth" class="m-btn-sm">来月</button>
+            <button id="mPresetAugSep" class="m-btn-sm" style="color: var(--color-brass-light);">8月〜9月</button>
+            <button id="mPresetAll" class="m-btn-sm">全期間</button>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+            <input type="date" id="mBulkStartDate" class="m-input">
+            <input type="date" id="mBulkEndDate" class="m-input">
+          </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <button id="mBtnBulkLineShare" class="m-btn-line" style="width: 100%;">
+            💬 LINE で期間内全練習を一括送信
+          </button>
+          <button id="mBtnBulkLineCopy" class="m-btn-glass" style="width: 100%;">
+            📋 テキストを一括コピー
+          </button>
+          <button id="mBtnBulkDownloadIcs" class="m-btn-gold" style="width: 100%;">
+            🍎 iPhoneカレンダーに一括追加 (.ics)
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 5: Data Backup Bottom Sheet -->
+  <div id="mBackupModal" class="m-sheet-backdrop">
+    <div class="m-sheet-content">
+      <div class="m-sheet-handle"></div>
+      <div class="m-sheet-header">
+        <h3>💾 データ管理・同期</h3>
+        <button class="m-close-btn" data-close="mBackupModal">&times;</button>
+      </div>
+      <div class="m-sheet-body">
+        <p style="font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 14px;">
+          PC版・スマホ版の共通データをバックアップ・復元できます。
+        </p>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <button id="mBtnExportJson" class="m-btn-gold">📤 データ書き出し (JSON)</button>
+          <input type="file" id="mImportJsonFile" accept=".json" style="display: none;">
+          <button id="mBtnImportJson" class="m-btn-glass">📥 データ読み込み (JSON)</button>
+          <button id="mBtnResetData" class="m-btn-danger">🔄 初期データにリセット</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mobile Logic Script -->
+  <script type="module" src="mobile-app.js"></script>
+</body>
+</html>
