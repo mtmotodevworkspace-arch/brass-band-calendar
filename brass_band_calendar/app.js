@@ -1,5 +1,5 @@
 /**
- * 吹奏楽専用カレンダー Web App メインロジック (Brass Band Practice Calendar App - Mobile Optimized)
+ * 吹奏楽専用カレンダー Web App メインロジック (Brass Band Practice Calendar App - Permanent Storage)
  */
 
 import { INITIAL_PRACTICE_DATA, MASTER_REPERTOIRE } from './sample-data.js';
@@ -14,8 +14,9 @@ let selectedDateForMobileSheet = null;
 let activePracticeForExport = null;
 let highestZIndex = 5000;
 
-const STORAGE_KEY_PRACTICES = 'brass_band_calendar_practices_v5';
-const STORAGE_KEY_REPERTOIRE = 'brass_band_calendar_repertoire_v5';
+// Permanent Storage Keys
+const PERMANENT_STORAGE_KEY_PRACTICES = 'brass_band_calendar_practices_permanent';
+const PERMANENT_STORAGE_KEY_REPERTOIRE = 'brass_band_calendar_repertoire_permanent';
 
 // DOM Content Loaded Handler
 document.addEventListener('DOMContentLoaded', () => {
@@ -26,39 +27,92 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 /* ==========================================================================
-   Storage & Initialization
+   Storage & Initialization (データ移行 & 永久保持ロジック)
    ========================================================================== */
 function initStorage() {
-  try {
-    const savedPractices = localStorage.getItem(STORAGE_KEY_PRACTICES);
-    if (savedPractices) {
-      practices = JSON.parse(savedPractices);
+  let loadedPractices = null;
+  let loadedRepertoire = null;
+
+  // Search across all key versions to retrieve user's past edits
+  const practiceKeys = [
+    PERMANENT_STORAGE_KEY_PRACTICES,
+    'brass_band_calendar_practices_v5',
+    'brass_band_calendar_practices_v4',
+    'brass_band_calendar_practices_v3',
+    'brass_band_calendar_practices_v2',
+    'brass_band_calendar_practices_v1',
+    'brass_band_calendar_practices'
+  ];
+
+  for (const key of practiceKeys) {
+    try {
+      const data = localStorage.getItem(key);
+      if (data) {
+        const parsed = JSON.parse(data);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          loadedPractices = parsed;
+          break;
+        }
+      }
+    } catch (e) {
+      console.warn('Practice parse error on key:', key, e);
     }
-  } catch (e) {
-    console.error('Error reading practices:', e);
-  }
-  if (!Array.isArray(practices) || practices.length === 0) {
-    practices = JSON.parse(JSON.stringify(INITIAL_PRACTICE_DATA));
   }
 
-  try {
-    const savedRepertoire = localStorage.getItem(STORAGE_KEY_REPERTOIRE);
-    if (savedRepertoire) {
-      repertoire = JSON.parse(savedRepertoire);
+  const repertoireKeys = [
+    PERMANENT_STORAGE_KEY_REPERTOIRE,
+    'brass_band_calendar_repertoire_v5',
+    'brass_band_calendar_repertoire_v4',
+    'brass_band_calendar_repertoire_v3',
+    'brass_band_calendar_repertoire_v2',
+    'brass_band_calendar_repertoire_v1',
+    'brass_band_calendar_repertoire'
+  ];
+
+  for (const key of repertoireKeys) {
+    try {
+      const data = localStorage.getItem(key);
+      if (data) {
+        const parsed = JSON.parse(data);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          loadedRepertoire = parsed;
+          break;
+        }
+      }
+    } catch (e) {
+      console.warn('Repertoire parse error on key:', key, e);
     }
-  } catch (e) {
-    console.error('Error reading repertoire:', e);
   }
-  if (!Array.isArray(repertoire) || repertoire.length === 0) {
-    repertoire = JSON.parse(JSON.stringify(MASTER_REPERTOIRE));
+
+  practices = loadedPractices || JSON.parse(JSON.stringify(INITIAL_PRACTICE_DATA));
+  repertoire = loadedRepertoire || JSON.parse(JSON.stringify(MASTER_REPERTOIRE));
+
+  // Merge sample repertoire if any new default songs exist without overwriting user edits
+  if (Array.isArray(loadedRepertoire)) {
+    MASTER_REPERTOIRE.forEach(defaultSong => {
+      const exists = repertoire.some(s => s.id === defaultSong.id || s.title === defaultSong.title);
+      if (!exists) {
+        repertoire.push(JSON.parse(JSON.stringify(defaultSong)));
+      }
+    });
   }
 
   saveToStorage();
 }
 
 function saveToStorage() {
-  localStorage.setItem(STORAGE_KEY_PRACTICES, JSON.stringify(practices));
-  localStorage.setItem(STORAGE_KEY_REPERTOIRE, JSON.stringify(repertoire));
+  try {
+    localStorage.setItem(PERMANENT_STORAGE_KEY_PRACTICES, JSON.stringify(practices));
+    localStorage.setItem(PERMANENT_STORAGE_KEY_REPERTOIRE, JSON.stringify(repertoire));
+
+    // Also mirror to legacy keys for compatibility across all tabs/versions
+    ['v5', 'v4', 'v3'].forEach(v => {
+      localStorage.setItem(`brass_band_calendar_practices_${v}`, JSON.stringify(practices));
+      localStorage.setItem(`brass_band_calendar_repertoire_${v}`, JSON.stringify(repertoire));
+    });
+  } catch (e) {
+    console.error('Error saving to storage:', e);
+  }
 }
 
 /* ==========================================================================
@@ -703,7 +757,6 @@ function handleDeleteSong() {
 function renderPracticeCardHtml(practice, showDateBadge = false) {
   const mapUrl = getGoogleMapsUrl(practice.locationName, practice.locationAddress);
 
-  // Main practice pieces section with prominent red/gold YouTube video buttons
   const piecesHtml = (practice.pieces || []).map(piece => {
     const matchedRepSong = repertoire.find(s => s.title === piece.title);
     let videos = piece.videos && piece.videos.length > 0 ? [...piece.videos] : [];
@@ -736,7 +789,6 @@ function renderPracticeCardHtml(practice, showDateBadge = false) {
     `;
   }).join('');
 
-  // Timetable Hourly Slots with YouTube player buttons
   const timetableHtml = (practice.timetable || []).map(slot => {
     const assignedSongs = (slot.pieceIds || []).map(songId => repertoire.find(s => s.id === songId)).filter(Boolean);
 
