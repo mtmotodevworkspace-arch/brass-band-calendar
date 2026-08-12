@@ -1,61 +1,50 @@
 /* ==========================================================================
-   吹奏楽専用カレンダー Web App - Liquid Glass Design System (Mobile Optimized)
+   吹奏楽専用カレンダー Web App メインスタイル (Portrait Smartphone First Design)
    ========================================================================== */
 
-@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Inter:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;700&display=swap');
-
 :root {
-  /* Color Palette - Music & Brass Band Inspired */
-  --bg-dark-base: #080c14;
-  --bg-dark-gradient: linear-gradient(135deg, #070a12 0%, #0d1527 50%, #15102a 100%);
-  
-  /* Glass Colors */
-  --glass-bg-primary: rgba(16, 22, 38, 0.75);
-  --glass-bg-secondary: rgba(24, 32, 54, 0.6);
-  --glass-bg-card: rgba(255, 255, 255, 0.06);
-  --glass-bg-hover: rgba(255, 255, 255, 0.12);
-  --glass-border: rgba(255, 255, 255, 0.14);
-  --glass-border-gold: rgba(229, 193, 88, 0.45);
-  --glass-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.55);
-  --glass-glow: 0 0 25px rgba(229, 193, 88, 0.2);
+  /* Color Tokens - Deep Space Blue & Brass Gold */
+  --bg-dark: #080c14;
+  --bg-card: rgba(15, 23, 42, 0.7);
+  --glass-bg-primary: rgba(18, 26, 43, 0.75);
+  --glass-bg-card: rgba(255, 255, 255, 0.04);
+  --glass-bg-hover: rgba(255, 255, 255, 0.08);
+  --glass-border: rgba(255, 255, 255, 0.12);
+  --glass-border-gold: rgba(229, 193, 88, 0.4);
+  --glass-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
 
-  /* Metallic Brass & Accents */
   --color-brass: #e5c158;
-  --color-brass-light: #fff0b3;
-  --color-brass-dark: #b89326;
-  --color-gold-gradient: linear-gradient(135deg, #ffe79a 0%, #e5c158 50%, #c59b27 100%);
-  
-  /* Practice Categories */
-  --cat-ensemble: #e5c158;      /* 合奏 (Brass Gold) */
-  --cat-ensemble-bg: rgba(229, 193, 88, 0.18);
-  --cat-part: #10b981;          /* パート練習 (Emerald) */
-  --cat-part-bg: rgba(16, 185, 129, 0.18);
-  --cat-personal: #3b82f6;      /* 個人練習 (Sapphire) */
-  --cat-personal-bg: rgba(59, 130, 246, 0.18);
-  --cat-concert: #f43f5e;       /* 本番 (Garnet) */
-  --cat-concert-bg: rgba(244, 63, 94, 0.22);
-  --cat-other: #a855f7;         /* その他 */
-  --cat-other-bg: rgba(168, 85, 247, 0.18);
+  --color-brass-light: #fef08a;
+  --color-brass-dark: #b45309;
+  --color-brass-gradient: linear-gradient(135deg, #fef08a 0%, #e5c158 50%, #b45309 100%);
+  --color-gold-gradient: linear-gradient(135deg, #ffe79a 0%, #e5c158 100%);
+  --color-yt-red: #ff3b3b;
+  --color-yt-gradient: linear-gradient(135deg, #ff4e4e 0%, #dc2626 100%);
 
-  /* Text & Surfaces */
-  --text-primary: #f8f9fa;
+  --text-primary: #f8fafc;
   --text-secondary: #cbd5e1;
-  --text-muted: #94a3b8;
-  --text-gold: #f5d77f;
+  --text-muted: #64748b;
+  --text-gold: #fef08a;
 
-  /* Typography */
-  --font-sans: 'Inter', 'Noto Sans JP', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-display: 'Cinzel', 'Noto Sans JP', serif;
+  /* Practice Category Colors */
+  --cat-ensemble: #e5c158;
+  --cat-ensemble-bg: rgba(229, 193, 88, 0.15);
+  --cat-part: #10b981;
+  --cat-part-bg: rgba(16, 185, 129, 0.15);
+  --cat-personal: #3b82f6;
+  --cat-personal-bg: rgba(59, 130, 246, 0.15);
+  --cat-concert: #f43f5e;
+  --cat-concert-bg: rgba(244, 63, 94, 0.15);
+  --cat-other: #a855f7;
+  --cat-other-bg: rgba(168, 85, 247, 0.15);
 
-  /* Radius & Blur */
-  --radius-xl: 24px;
-  --radius-lg: 16px;
-  --radius-md: 12px;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --radius-sm: 8px;
-  --blur-amount: 20px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
 }
 
-/* Reset & Base Styles */
+/* Reset & Global Base */
 * {
   box-sizing: border-box;
   margin: 0;
@@ -64,89 +53,45 @@
 }
 
 body {
-  font-family: var(--font-sans);
-  background: var(--bg-dark-base);
-  background-image: var(--bg-dark-gradient);
+  background-color: var(--bg-dark);
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(30, 41, 59, 0.5) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(229, 193, 88, 0.08) 0px, transparent 50%);
+  background-attachment: fixed;
   color: var(--text-primary);
+  font-family: var(--font-sans);
   min-height: 100vh;
-  line-height: 1.6;
+  line-height: 1.5;
   overflow-x: hidden;
-  position: relative;
-}
-
-/* Ambient Animated Liquid Background Spheres */
-.ambient-glow {
-  position: fixed;
-  border-radius: 50%;
-  filter: blur(90px);
-  pointer-events: none;
-  z-index: 0;
-  opacity: 0.4;
-  animation: floatOrb 20s infinite ease-in-out alternate;
-}
-.glow-1 {
-  width: 450px;
-  height: 450px;
-  background: radial-gradient(circle, rgba(229, 193, 88, 0.25) 0%, rgba(184, 147, 38, 0) 70%);
-  top: -100px;
-  left: -100px;
-}
-.glow-2 {
-  width: 550px;
-  height: 550px;
-  background: radial-gradient(circle, rgba(59, 130, 246, 0.2) 0%, rgba(15, 23, 42, 0) 70%);
-  bottom: -150px;
-  right: -100px;
-  animation-delay: -7s;
-}
-.glow-3 {
-  width: 350px;
-  height: 350px;
-  background: radial-gradient(circle, rgba(168, 85, 247, 0.18) 0%, rgba(15, 23, 42, 0) 70%);
-  top: 40%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  animation-delay: -12s;
-}
-
-@keyframes floatOrb {
-  0% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(40px, -60px) scale(1.1); }
-  100% { transform: translate(-30px, 40px) scale(0.95); }
+  padding-bottom: 40px;
 }
 
 /* App Container Layout */
 #app {
-  position: relative;
-  z-index: 1;
-  max-width: 1280px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 16px 12px 60px 12px;
 }
 
-/* Liquid Glass Cards */
+/* Glassmorphism Panel Base */
 .glass-panel {
   background: var(--glass-bg-primary);
-  backdrop-filter: blur(var(--blur-amount));
-  -webkit-backdrop-filter: blur(var(--blur-amount));
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--glass-shadow);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: border-color 0.25s ease, transform 0.2s ease;
 }
 
-.glass-panel-gold {
-  border-color: var(--glass-border-gold);
-  box-shadow: var(--glass-shadow), var(--glass-glow);
-}
-
-/* Header & Navigation */
+/* App Header */
 header.app-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 14px 18px;
-  margin-bottom: 16px;
+  padding: 16px 20px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
   gap: 12px;
 }
 
@@ -156,32 +101,31 @@ header.app-header {
   gap: 12px;
 }
 
-.brand-icon {
-  width: 42px;
-  height: 42px;
+.logo-icon {
+  width: 44px;
+  height: 44px;
+  background: var(--color-brass-gradient);
   border-radius: 50%;
-  background: var(--color-gold-gradient);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
+  font-size: 1.4rem;
   box-shadow: 0 0 15px rgba(229, 193, 88, 0.4);
-  flex-shrink: 0;
 }
 
-.brand-title h1 {
-  font-family: var(--font-display);
+.brand-title {
   font-size: 1.25rem;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  background: var(--color-gold-gradient);
+  font-weight: 800;
+  background: var(--color-brass-gradient);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  line-height: 1.2;
+  letter-spacing: -0.02em;
 }
-.brand-title p {
-  font-size: 0.72rem;
+
+.brand-subtitle {
+  font-size: 0.75rem;
   color: var(--text-muted);
+  font-weight: 500;
 }
 
 .header-actions {
@@ -191,110 +135,101 @@ header.app-header {
   flex-wrap: wrap;
 }
 
-/* Action Buttons */
+/* Button UI Tokens */
 .btn-glass {
-  background: var(--glass-bg-card);
+  background: rgba(255, 255, 255, 0.06);
   border: 1px solid var(--glass-border);
   color: var(--text-primary);
   padding: 8px 14px;
-  border-radius: var(--radius-md);
-  font-family: var(--font-sans);
+  border-radius: var(--radius-sm);
   font-size: 0.85rem;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  backdrop-filter: blur(10px);
-  min-height: 40px;
   transition: all 0.2s ease;
+  min-height: 40px;
+  text-decoration: none;
 }
 
 .btn-glass:hover, .btn-glass:active {
-  background: var(--glass-bg-hover);
-  border-color: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.12);
+  border-color: var(--glass-border-gold);
   transform: translateY(-1px);
 }
 
-.btn-gold {
-  background: var(--color-gold-gradient);
-  border: none;
-  color: #0b0f19;
+.btn-primary-gold {
+  background: var(--color-brass-gradient);
+  color: #080c14;
   font-weight: 700;
+  border: none;
   box-shadow: 0 4px 15px rgba(229, 193, 88, 0.35);
 }
 
-.btn-gold:hover, .btn-gold:active {
-  background: linear-gradient(135deg, #ffffff 0%, #e5c158 100%);
+.btn-primary-gold:hover, .btn-primary-gold:active {
+  box-shadow: 0 6px 20px rgba(229, 193, 88, 0.5);
   transform: translateY(-1px);
-  box-shadow: 0 6px 25px rgba(229, 193, 88, 0.5);
 }
 
 .btn-yt-highlight {
-  background: linear-gradient(135deg, #ff4e4e 0%, #dc2626 100%) !important;
+  background: var(--color-yt-gradient) !important;
   color: #ffffff !important;
   border: 1px solid rgba(255, 255, 255, 0.3) !important;
   font-weight: 700 !important;
-  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.4) !important;
-  padding: 8px 14px !important;
-  font-size: 0.85rem !important;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.35) !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 
 .btn-yt-highlight:hover, .btn-yt-highlight:active {
-  background: linear-gradient(135deg, #ff6b6b 0%, #ef4444 100%) !important;
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.6) !important;
+  box-shadow: 0 6px 18px rgba(239, 68, 68, 0.5) !important;
 }
 
 .btn-sm {
-  padding: 5px 10px;
+  padding: 6px 10px;
   font-size: 0.78rem;
-  border-radius: var(--radius-sm);
   min-height: 34px;
 }
 
-.btn-icon-only {
-  padding: 8px;
-  min-width: 38px;
-  height: 38px;
-  border-radius: 50%;
+/* Controls Bar & View Navigation */
+.controls-bar {
+  padding: 12px 16px;
+  margin-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-/* Controls Bar: View Switcher & Date Controls */
-.controls-bar {
+.controls-top-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 12px;
-  padding: 12px 14px;
-  margin-bottom: 16px;
+  gap: 10px;
 }
 
 .date-navigator {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .current-period-title {
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  min-width: 140px;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--color-brass-light);
+  min-width: 130px;
   text-align: center;
 }
 
-/* Tab Switcher (Month / Week / Day / Timetable / Repertoire) */
 .view-tabs {
   display: flex;
   background: rgba(0, 0, 0, 0.3);
   padding: 4px;
   border-radius: var(--radius-md);
   border: 1px solid var(--glass-border);
-  flex-wrap: wrap;
-  width: 100%;
+  gap: 4px;
 }
 
 .tab-btn {
@@ -385,9 +320,14 @@ header.app-header {
   position: relative;
 }
 
-.calendar-day-cell:hover, .calendar-day-cell:active {
+.calendar-day-cell:hover, .calendar-day-cell:active, .calendar-day-cell.selected {
   background: var(--glass-bg-hover);
   border-color: var(--glass-border-gold);
+}
+
+.calendar-day-cell.selected {
+  box-shadow: inset 0 0 10px rgba(229, 193, 88, 0.3);
+  border-width: 1.5px;
 }
 
 .calendar-day-cell.other-month {
@@ -444,7 +384,7 @@ header.app-header {
 /* Mobile Selected Day Preview Sheet */
 .mobile-day-sheet {
   background: var(--glass-bg-primary);
-  border: 1px solid var(--glass-border-gold);
+  border: 1.5px solid var(--glass-border-gold);
   border-radius: var(--radius-md);
   padding: 14px;
   margin-top: 14px;
@@ -528,6 +468,7 @@ header.app-header {
   flex-direction: column;
   gap: 10px;
   position: relative;
+  margin-bottom: 12px;
 }
 
 .section-tag {
@@ -699,6 +640,34 @@ textarea.form-control {
   cursor: pointer;
 }
 
+/* Song Selector Grid inside Timetable Form */
+.song-checkboxes-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+  max-height: 180px;
+  overflow-y: auto;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  padding: 8px;
+}
+
+.song-checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: var(--text-primary);
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+}
+
+.song-checkbox-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
 /* Calendar Export Grid */
 .export-options-grid {
   display: grid;
@@ -723,39 +692,67 @@ textarea.form-control {
 }
 
 /* ==========================================================================
-   Mobile-First Responsive Layout Fixes (<650px Smartphones)
+   Portrait Smartphone First Responsive System (<650px & Portrait Orientation)
    ========================================================================== */
 @media (max-width: 650px) {
   #app {
     padding: 10px 8px 50px 8px;
   }
 
+  /* Vertical Portrait Header Styling */
   header.app-header {
     flex-direction: column;
     align-items: stretch;
     padding: 12px 14px;
     gap: 10px;
+    text-align: center;
   }
 
   .brand-container {
     justify-content: center;
+    gap: 10px;
+  }
+
+  .logo-icon {
+    width: 38px;
+    height: 38px;
+    font-size: 1.2rem;
+  }
+
+  .brand-title {
+    font-size: 1.15rem;
   }
 
   .header-actions {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
     gap: 8px;
     width: 100%;
   }
 
-  .header-actions .btn-glass {
+  .header-actions #btnAddPractice {
     width: 100%;
-    font-size: 0.8rem;
-    padding: 8px 6px;
+    font-size: 0.92rem;
+    padding: 10px 14px;
   }
 
+  .header-sub-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 6px;
+    width: 100%;
+  }
+
+  .header-sub-actions .btn-glass {
+    width: 100%;
+    font-size: 0.75rem;
+    padding: 8px 4px;
+    min-height: 38px;
+  }
+
+  /* Portrait Controls Bar */
   .controls-bar {
-    padding: 10px 12px;
+    padding: 10px 10px;
     gap: 10px;
   }
 
@@ -773,26 +770,34 @@ textarea.form-control {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
     gap: 2px;
-    padding: 2px;
+    padding: 3px;
+    width: 100%;
   }
 
   .tab-btn {
-    padding: 6px 2px;
+    padding: 8px 2px;
     font-size: 0.72rem;
-    min-height: 36px;
+    min-height: 38px;
+    border-radius: 6px;
   }
 
+  /* Month Grid in Portrait */
   .calendar-month-grid {
     gap: 2px;
   }
 
+  .weekday-header {
+    font-size: 0.72rem;
+    padding: 4px 1px;
+  }
+
   .calendar-day-cell {
-    min-height: 60px;
+    min-height: 58px;
     padding: 3px;
   }
 
   .day-number {
-    font-size: 0.78rem;
+    font-size: 0.76rem;
   }
 
   .event-badge {
@@ -800,16 +805,28 @@ textarea.form-control {
     padding: 2px 3px;
   }
 
+  /* Vertical Form Rows */
   .form-row {
     grid-template-columns: 1fr;
   }
 
-  /* Make YouTube buttons prominent on mobile */
+  /* Vertical Prominent YouTube Buttons for Portrait Thumbs */
   .btn-play-card-video, .btn-play-slot-video, .btn-play-rep-video {
-    width: 100%;
-    justify-content: center;
-    padding: 10px 14px !important;
+    width: 100% !important;
+    justify-content: center !important;
+    padding: 10px 12px !important;
     font-size: 0.88rem !important;
     min-height: 42px !important;
+    margin-top: 4px !important;
+  }
+
+  .modal-backdrop {
+    padding: 8px;
+  }
+
+  .modal-content {
+    padding: 16px 12px;
+    max-height: 94vh;
+    border-radius: var(--radius-md);
   }
 }
