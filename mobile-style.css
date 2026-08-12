@@ -1,10 +1,11 @@
 /* ==========================================================================
    吹奏楽専用カレンダー Smartphone Native App Dedicated Stylesheet (mobile-style.css)
+   High Performance 60FPS Optimization & Touch Response Tuning
    ========================================================================== */
 
 :root {
   --bg-dark: #080c14;
-  --bg-surface: rgba(18, 26, 43, 0.95);
+  --bg-surface: #101726;
   --glass-border: rgba(255, 255, 255, 0.12);
   --glass-border-gold: rgba(229, 193, 88, 0.45);
 
@@ -32,37 +33,37 @@
   margin: 0;
   padding: 0;
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
-body.mobile-body {
+html, body.mobile-body {
   background-color: var(--bg-dark);
-  background-image: radial-gradient(circle at 50% 0%, rgba(229, 193, 88, 0.12) 0%, transparent 60%);
+  background-image: radial-gradient(circle at 50% 0%, rgba(229, 193, 88, 0.1) 0%, transparent 70%);
   color: var(--text-primary);
   font-family: var(--font-sans);
   min-height: 100vh;
   padding-bottom: 90px; /* Space for bottom nav dock */
   overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
 }
 
-/* Background Ambient Orbs */
+/* Background Ambient Orbs (GPU Lightened) */
 .m-glow {
   position: fixed;
   border-radius: 50%;
-  filter: blur(80px);
   pointer-events: none;
   z-index: 0;
+  opacity: 0.6;
 }
-.m-glow-1 { top: -50px; left: -50px; width: 200px; height: 200px; background: rgba(229, 193, 88, 0.15); }
-.m-glow-2 { bottom: 100px; right: -50px; width: 250px; height: 250px; background: rgba(59, 130, 246, 0.1); }
+.m-glow-1 { top: -50px; left: -50px; width: 180px; height: 180px; background: radial-gradient(circle, rgba(229, 193, 88, 0.2) 0%, transparent 70%); }
+.m-glow-2 { bottom: 100px; right: -50px; width: 200px; height: 200px; background: radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, transparent 70%); }
 
 /* Header & Sticky Top Bar */
 .m-header {
   position: sticky;
   top: 0;
   z-index: 500;
-  background: rgba(8, 12, 20, 0.88);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: rgba(8, 12, 20, 0.95);
   border-bottom: 1px solid var(--glass-border);
   padding: 10px 12px;
 }
@@ -106,6 +107,7 @@ body.mobile-body {
   padding: 4px 8px;
   font-size: 0.9rem;
   min-height: 34px;
+  cursor: pointer;
 }
 
 .m-pc-link {
@@ -117,6 +119,7 @@ body.mobile-body {
   padding: 4px 8px;
   border-radius: 8px;
   font-weight: 700;
+  cursor: pointer;
 }
 
 /* Date Switcher Bar */
@@ -128,7 +131,7 @@ body.mobile-body {
 }
 
 .m-arrow-btn, .m-today-btn {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.08);
   border: 1px solid var(--glass-border);
   color: var(--text-primary);
   border-radius: 8px;
@@ -136,6 +139,7 @@ body.mobile-body {
   font-size: 0.82rem;
   font-weight: 700;
   min-height: 36px;
+  cursor: pointer;
 }
 
 .m-period-text {
@@ -155,6 +159,7 @@ body.mobile-body {
   font-size: 0.78rem;
   font-weight: 700;
   min-height: 36px;
+  cursor: pointer;
 }
 
 /* Filter Chips Horizontal Scroll */
@@ -163,6 +168,7 @@ body.mobile-body {
   gap: 6px;
   overflow-x: auto;
   padding-bottom: 2px;
+  -webkit-overflow-scrolling: touch;
 }
 
 .m-chip {
@@ -174,6 +180,7 @@ body.mobile-body {
   font-size: 0.78rem;
   white-space: nowrap;
   min-height: 30px;
+  cursor: pointer;
 }
 
 .m-chip.active {
@@ -216,6 +223,8 @@ body.mobile-body {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
 }
 
 .m-day-cell.today {
@@ -323,6 +332,7 @@ body.mobile-body {
   min-height: 42px !important;
   margin-top: 6px !important;
   box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3) !important;
+  cursor: pointer;
 }
 
 .m-btn-gold {
@@ -334,7 +344,7 @@ body.mobile-body {
   padding: 12px 14px;
   font-size: 0.9rem;
   min-height: 44px;
-
+  cursor: pointer;
 }
 
 .m-btn-glass {
@@ -345,7 +355,7 @@ body.mobile-body {
   padding: 10px 14px;
   font-size: 0.88rem;
   min-height: 42px;
-
+  cursor: pointer;
 }
 
 .m-btn-line {
@@ -357,7 +367,7 @@ body.mobile-body {
   padding: 12px;
   font-size: 0.9rem;
   min-height: 44px;
-
+  cursor: pointer;
 }
 
 .m-btn-danger {
@@ -368,7 +378,7 @@ body.mobile-body {
   padding: 10px;
   font-size: 0.85rem;
   min-height: 40px;
-
+  cursor: pointer;
 }
 
 .m-btn-sm {
@@ -378,7 +388,7 @@ body.mobile-body {
   border: 1px solid var(--glass-border);
   color: var(--text-primary);
   border-radius: 6px;
-
+  cursor: pointer;
 }
 
 .m-action-btn-gold {
@@ -389,7 +399,7 @@ body.mobile-body {
   padding: 6px 12px;
   border-radius: 8px;
   font-size: 0.8rem;
-
+  cursor: pointer;
 }
 
 /* Native Fixed Bottom Navigation Dock */
@@ -399,9 +409,7 @@ body.mobile-body {
   left: 0;
   width: 100vw;
   height: 64px;
-  background: rgba(8, 12, 20, 0.95);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: rgba(8, 12, 20, 0.96);
   border-top: 1px solid var(--glass-border);
   display: flex;
   justify-content: space-around;
@@ -419,7 +427,7 @@ body.mobile-body {
   align-items: center;
   gap: 2px;
   flex: 1;
-
+  cursor: pointer;
 }
 
 .m-nav-item.active {
@@ -462,13 +470,12 @@ body.mobile-body {
   width: 100vw;
   height: 100vh;
   background: rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(8px);
   z-index: 2000;
   display: flex;
   align-items: flex-end;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.3s ease;
+  transition: opacity 0.25s ease;
 }
 
 .m-sheet-backdrop.active {
@@ -484,9 +491,9 @@ body.mobile-body {
   border-radius: 20px 20px 0 0;
   padding: 12px 14px 24px 14px;
   transform: translateY(100%);
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.25s ease-out;
   overflow-y: auto;
-
+  -webkit-overflow-scrolling: touch;
 }
 
 .m-sheet-backdrop.active .m-sheet-content {
@@ -522,6 +529,7 @@ body.mobile-body {
   color: var(--text-muted);
   font-size: 1.5rem;
   padding: 2px 8px;
+  cursor: pointer;
 }
 
 /* Mobile Inputs */
