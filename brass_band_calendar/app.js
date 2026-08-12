@@ -1,6 +1,6 @@
 /**
  * 吹奏楽専用カレンダー Web App メインロジック (PC版)
- * View-Only Mode (閲覧専用・デフォルト) & Admin Mode (管理者用) + Hard Reset for "先生"
+ * View-Only Mode (閲覧専用・デフォルト) & Admin Mode (管理者用) + Hard Reset for "先生" + Direct YouTube Links
  */
 
 import { INITIAL_PRACTICE_DATA, MASTER_REPERTOIRE } from './sample-data.js';
@@ -52,7 +52,6 @@ function checkAdminMode() {
   if (urlParams.get('admin') === '1') {
     isAdminMode = true;
   } else {
-    // Default to View-Only (false) unless explicitly unlocked
     isAdminMode = sessionStorage.getItem('brass_band_is_admin') === 'true';
   }
   updateAdminModeUi();
@@ -74,7 +73,6 @@ function updateAdminModeUi() {
     }
   }
 
-  // Hide or show all edit controls
   document.querySelectorAll('.admin-only').forEach(el => {
     if (isAdminMode) {
       el.style.display = '';
@@ -99,7 +97,7 @@ function promptAdminLogin() {
     if (code === '1234' || code === 'admin') {
       isAdminMode = true;
       sessionStorage.setItem('brass_band_is_admin', 'true');
-      alert('管理者モードにログインしました。練習予定や曲目の追加・編集が可能です。');
+      alert('管理者モードにログインしました。編集権限が有効です。');
       updateAdminModeUi();
       render();
     } else if (code !== null) {
@@ -108,7 +106,6 @@ function promptAdminLogin() {
   }
 }
 
-/* Storage Initialization */
 function initStorage() {
   let loadedPractices = null;
   let loadedRepertoire = null;
@@ -530,13 +527,12 @@ function renderRepertoireCardsHtml(songList) {
   if (!songList || songList.length === 0) return `<div style="padding: 20px; text-align: center; color: var(--text-muted);">曲目が登録されていません。</div>`;
 
   return songList.map(song => {
-    // Strictly strip out "先生"
     const cleanConductor = (song.conductor || '未定').replace(/\s*先生/g, '').trim();
 
     const videoBtnsHtml = (song.videos || []).map((v, idx) => `
-      <button class="btn-glass btn-sm btn-yt-highlight btn-play-rep-video" data-songid="${song.id}" data-vididx="${idx}">
-        🎬 ${escapeHtml(v.title || `演奏動画 ${idx+1}`)}
-      </button>
+      <a href="${escapeHtml(v.url)}" target="_blank" rel="noopener noreferrer" class="btn-glass btn-sm btn-yt-highlight" style="display: inline-flex; align-items: center; gap: 6px; text-decoration: none; margin-right: 6px; margin-top: 6px;">
+        🎬 ${escapeHtml(v.title || `演奏動画 ${idx+1}`)} <span style="font-size: 0.72rem; opacity: 0.8;">YouTube再生 ↗</span>
+      </a>
     `).join('');
 
     return `
@@ -576,17 +572,6 @@ function renderRepertoireCardsHtml(songList) {
 }
 
 function attachRepertoireEvents(container) {
-  container.querySelectorAll('.btn-play-rep-video').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const songId = e.currentTarget.dataset.songid;
-      const vidIdx = parseInt(e.currentTarget.dataset.vididx, 10);
-      const song = repertoire.find(s => s.id === songId);
-      if (song && song.videos && song.videos[vidIdx]) {
-        openYoutubeMultiVideoModal(song.title, song.videos, vidIdx);
-      }
-    });
-  });
-
   if (isAdminMode) {
     container.querySelectorAll('.btn-edit-song').forEach(btn => {
       btn.addEventListener('click', (e) => openEditSongModal(e.currentTarget.dataset.songid));
@@ -708,9 +693,9 @@ function renderPracticeCardHtml(practice, showDateBadge = false) {
     const videoTabsHtml = `
       <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px;">
         ${videos.map((v, idx) => `
-          <button class="btn-glass btn-sm btn-yt-highlight btn-play-card-video" data-songtitle="${escapeHtml(piece.title)}" data-piece-json='${JSON.stringify(videos).replace(/'/g, "&apos;")}' data-idx="${idx}">
-            🎬 ${escapeHtml(v.title || `演奏動画 ${idx+1}`)}
-          </button>
+          <a href="${escapeHtml(v.url)}" target="_blank" rel="noopener noreferrer" class="btn-glass btn-sm btn-yt-highlight" style="display: inline-flex; align-items: center; gap: 6px; text-decoration: none;">
+            🎬 ${escapeHtml(v.title || `演奏動画 ${idx+1}`)} <span style="font-size: 0.72rem; opacity: 0.8;">YouTube再生 ↗</span>
+          </a>
         `).join('')}
       </div>
     `;
@@ -734,12 +719,13 @@ function renderPracticeCardHtml(practice, showDateBadge = false) {
 
     const slotSongsHtml = assignedSongs.map(song => {
       const vList = song.videos || [];
+      const ytUrl = vList.length > 0 ? vList[0].url : `https://www.youtube.com/results?search_query=${encodeURIComponent(song.title + ' 吹奏楽')}`;
       return `
         <div style="display: inline-flex; align-items: center; gap: 6px; background: rgba(229,193,88,0.14); border: 1px solid var(--glass-border-gold); padding: 4px 10px; border-radius: var(--radius-sm); font-size: 0.82rem; margin-top: 4px; flex-wrap: wrap;">
           <span>🎼 <strong>${escapeHtml(song.title)}</strong></span>
-          <button class="btn-glass btn-sm btn-yt-highlight btn-play-slot-video" data-songtitle="${escapeHtml(song.title)}" data-videos='${JSON.stringify(vList).replace(/'/g, "&apos;")}' style="padding: 4px 10px; font-size: 0.78rem;">
-            🎬 YouTube再生
-          </button>
+          <a href="${escapeHtml(ytUrl)}" target="_blank" rel="noopener noreferrer" class="btn-glass btn-sm btn-yt-highlight" style="padding: 4px 10px; font-size: 0.78rem; text-decoration: none;">
+            🎬 YouTube再生 ↗
+          </a>
         </div>
       `;
     }).join(' ');
@@ -820,23 +806,6 @@ function renderPracticeCardHtml(practice, showDateBadge = false) {
 }
 
 function attachPracticeCardEvents(container) {
-  container.querySelectorAll('.btn-play-card-video').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const songTitle = e.currentTarget.dataset.songtitle;
-      const videos = JSON.parse(e.currentTarget.dataset.pieceJson);
-      const activeIdx = parseInt(e.currentTarget.dataset.idx, 10);
-      openYoutubeMultiVideoModal(songTitle, videos, activeIdx);
-    });
-  });
-
-  container.querySelectorAll('.btn-play-slot-video').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const songTitle = e.currentTarget.dataset.songtitle;
-      const videos = JSON.parse(e.currentTarget.dataset.videos);
-      openYoutubeMultiVideoModal(songTitle, videos, 0);
-    });
-  });
-
   container.querySelectorAll('.btn-share-practice').forEach(btn => {
     btn.addEventListener('click', (e) => openExportModal(e.currentTarget.dataset.id));
   });
@@ -1041,42 +1010,6 @@ function openDetailModal(id) {
   openModal('detailModal');
 }
 
-function openYoutubeMultiVideoModal(songTitle, videos = [], activeIdx = 0) {
-  const body = document.getElementById('detailModalBody');
-  if (!videos || videos.length === 0) {
-    videos = [{ title: `${songTitle} 吹奏楽名演`, url: `https://www.youtube.com/results?search_query=${encodeURIComponent(songTitle + ' 吹奏楽')}` }];
-  }
-
-  const activeVideo = videos[activeIdx] || videos[0];
-  const rawYtId = extractYoutubeId(activeVideo.url);
-
-  const embedUrl = rawYtId 
-    ? `https://www.youtube.com/embed/${rawYtId}?autoplay=1`
-    : `https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(songTitle + ' 吹奏楽')}`;
-
-  const directLinkUrl = rawYtId
-    ? `https://www.youtube.com/watch?v=${rawYtId}`
-    : `https://www.youtube.com/results?search_query=${encodeURIComponent(songTitle + ' 吹奏楽')}`;
-
-  body.innerHTML = `
-    <div style="margin-bottom: 12px;">
-      <h3 style="font-size: 1.1rem; color: var(--color-brass-light); font-weight: 700;">🎼 ${escapeHtml(songTitle)}</h3>
-    </div>
-
-    <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: var(--radius-md);">
-      <iframe src="${embedUrl}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen style="position: absolute; top:0; left:0; width:100%; height:100%;"></iframe>
-    </div>
-
-    <div style="margin-top: 16px; text-align: center;">
-      <a href="${directLinkUrl}" target="_blank" class="btn-glass btn-sm btn-yt-highlight" style="width: 100%; font-size: 0.9rem; padding: 12px;">
-        🎬 YouTubeアプリで「${escapeHtml(songTitle)}」を開く
-      </a>
-    </div>
-  `;
-
-  openModal('detailModal');
-}
-
 function openBulkExportModal() {
   setBulkPreset('augSep');
   openModal('bulkExportModal');
@@ -1248,12 +1181,6 @@ function formatDate(d) {
 function getWeekStartDate(d) {
   const date = new Date(d);
   return new Date(date.setDate(date.getDate() - date.getDay()));
-}
-
-function extractYoutubeId(url) {
-  if (!url) return null;
-  const match = url.match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/);
-  return (match && match[2] && match[2].length === 11) ? match[2] : null;
 }
 
 function getGoogleMapsUrl(name, address) {
