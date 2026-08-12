@@ -1,5 +1,5 @@
 /**
- * 吹奏楽専用カレンダー Web App メインロジック (Brass Band Practice Calendar App - Permanent Storage)
+ * 吹奏楽専用カレンダー Web App メインロジック (Brass Band Practice Calendar App - Exact User Image Data Sync)
  */
 
 import { INITIAL_PRACTICE_DATA, MASTER_REPERTOIRE } from './sample-data.js';
@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 /* ==========================================================================
-   Storage & Initialization (データ移行 & 永久保持ロジック)
+   Storage & Initialization (ユーザー正解画像データの完全同期 & 永久保持)
    ========================================================================== */
 function initStorage() {
   let loadedPractices = null;
@@ -87,14 +87,25 @@ function initStorage() {
   practices = loadedPractices || JSON.parse(JSON.stringify(INITIAL_PRACTICE_DATA));
   repertoire = loadedRepertoire || JSON.parse(JSON.stringify(MASTER_REPERTOIRE));
 
-  // Merge sample repertoire if any new default songs exist without overwriting user edits
-  if (Array.isArray(loadedRepertoire)) {
-    MASTER_REPERTOIRE.forEach(defaultSong => {
-      const exists = repertoire.some(s => s.id === defaultSong.id || s.title === defaultSong.title);
-      if (!exists) {
-        repertoire.push(JSON.parse(JSON.stringify(defaultSong)));
-      }
-    });
+  // Sync 8/16 practice entry with exact timetable pieceIds from user screenshot if empty
+  const p816 = practices.find(p => p.date === '2026-08-16');
+  if (p816 && (!p816.timetable[0].pieceIds || p816.timetable[0].pieceIds.length === 0)) {
+    p816.conductors = "公文";
+    p816.pieces = [
+      { title: "青少年のための管弦楽入門", conductor: "公文" },
+      { title: "海の男たちの歌 (Songs of Sailor and Sea)", conductor: "公文" }
+    ];
+    if (p816.timetable[0]) p816.timetable[0].pieceIds = ["rep-1", "rep-10"];
+    if (p816.timetable[1]) p816.timetable[1].pieceIds = ["rep-1", "rep-10"];
+  }
+
+  // Sync rep-1 video titles ("オーケストラ（原曲）版", "吹奏楽版&スコア") from user screenshot
+  const rep1 = repertoire.find(s => s.id === 'rep-1' || s.title.includes('青少年のための管弦楽入門'));
+  if (rep1 && (!rep1.videos || rep1.videos[0].title.includes('吹奏楽名演'))) {
+    rep1.videos = [
+      { title: "オーケストラ（原曲）版", url: "https://www.youtube.com/results?search_query=The+Young+Person%27s+Guide+to+the+Orchestra+Britten", description: "オーケストラ原曲スコア音源" },
+      { title: "吹奏楽版&スコア", url: "https://www.youtube.com/results?search_query=%E9%9D%92%E5%B0%91%E5%B9%B4%E3%81%AE%E3%81%9F%E3%82%81%E3%81%AE%E7%AE%A1%E5%BC%A6%E6%A5%BD%E5%85%A5%E9%96%80+%E5%90%B9%E5%A5%8F%E6%A5%BD", description: "プロ吹奏楽団・名門バンドによるテーマ＆フーガ名演" }
+    ];
   }
 
   saveToStorage();
@@ -105,7 +116,6 @@ function saveToStorage() {
     localStorage.setItem(PERMANENT_STORAGE_KEY_PRACTICES, JSON.stringify(practices));
     localStorage.setItem(PERMANENT_STORAGE_KEY_REPERTOIRE, JSON.stringify(repertoire));
 
-    // Also mirror to legacy keys for compatibility across all tabs/versions
     ['v5', 'v4', 'v3'].forEach(v => {
       localStorage.setItem(`brass_band_calendar_practices_${v}`, JSON.stringify(practices));
       localStorage.setItem(`brass_band_calendar_repertoire_${v}`, JSON.stringify(repertoire));
@@ -757,6 +767,7 @@ function handleDeleteSong() {
 function renderPracticeCardHtml(practice, showDateBadge = false) {
   const mapUrl = getGoogleMapsUrl(practice.locationName, practice.locationAddress);
 
+  // Main practice pieces section with prominent red/gold YouTube video buttons
   const piecesHtml = (practice.pieces || []).map(piece => {
     const matchedRepSong = repertoire.find(s => s.title === piece.title);
     let videos = piece.videos && piece.videos.length > 0 ? [...piece.videos] : [];
@@ -789,6 +800,7 @@ function renderPracticeCardHtml(practice, showDateBadge = false) {
     `;
   }).join('');
 
+  // Timetable Hourly Slots with YouTube player buttons
   const timetableHtml = (practice.timetable || []).map(slot => {
     const assignedSongs = (slot.pieceIds || []).map(songId => repertoire.find(s => s.id === songId)).filter(Boolean);
 
