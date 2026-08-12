@@ -1,6 +1,6 @@
 /**
  * 吹奏楽専用カレンダー Web App メインロジック (Brass Band Practice Calendar App - PC Version)
- * View-Only Mode (閲覧専用) & Admin Mode (管理者用) Separation + Conductor Name Sanitizer
+ * View-Only Mode (閲覧専用) & Admin Mode (管理者用) + Cache-Buster & "先生" Aggressive Sanitizer
  */
 
 import { INITIAL_PRACTICE_DATA, MASTER_REPERTOIRE } from './sample-data.js';
@@ -17,11 +17,10 @@ let highestZIndex = 5000;
 let isAdminMode = false;
 
 // Permanent Storage Keys
-const PERMANENT_STORAGE_KEY_PRACTICES = 'brass_band_calendar_practices_permanent';
-const PERMANENT_STORAGE_KEY_REPERTOIRE = 'brass_band_calendar_repertoire_permanent';
+const PERMANENT_STORAGE_KEY_PRACTICES = 'brass_band_calendar_practices_v7';
+const PERMANENT_STORAGE_KEY_REPERTOIRE = 'brass_band_calendar_repertoire_v7';
 const ADMIN_MODE_STORAGE_KEY = 'brass_band_calendar_is_admin';
 
-// DOM Content Loaded Handler
 document.addEventListener('DOMContentLoaded', () => {
   initStorage();
   checkAdminMode();
@@ -89,79 +88,42 @@ function promptAdminLogin() {
 }
 
 /* ==========================================================================
-   Storage & Initialization (「先生」の排除 & 全データ同期)
+   Storage & Initialization (「先生」の排除 & 全データ強制最新化)
    ========================================================================== */
 function initStorage() {
   let loadedPractices = null;
   let loadedRepertoire = null;
 
-  const practiceKeys = [
-    PERMANENT_STORAGE_KEY_PRACTICES,
-    'brass_band_calendar_practices_v5',
-    'brass_band_calendar_practices_v4',
-    'brass_band_calendar_practices_v3',
-    'brass_band_calendar_practices_v2',
-    'brass_band_calendar_practices_v1',
-    'brass_band_calendar_practices'
-  ];
+  try {
+    const pData = localStorage.getItem(PERMANENT_STORAGE_KEY_PRACTICES);
+    if (pData) loadedPractices = JSON.parse(pData);
 
-  for (const key of practiceKeys) {
-    try {
-      const data = localStorage.getItem(key);
-      if (data) {
-        const parsed = JSON.parse(data);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          loadedPractices = parsed;
-          break;
-        }
-      }
-    } catch (e) {}
-  }
-
-  const repertoireKeys = [
-    PERMANENT_STORAGE_KEY_REPERTOIRE,
-    'brass_band_calendar_repertoire_v5',
-    'brass_band_calendar_repertoire_v4',
-    'brass_band_calendar_repertoire_v3',
-    'brass_band_calendar_repertoire_v2',
-    'brass_band_calendar_repertoire_v1',
-    'brass_band_calendar_repertoire'
-  ];
-
-  for (const key of repertoireKeys) {
-    try {
-      const data = localStorage.getItem(key);
-      if (data) {
-        const parsed = JSON.parse(data);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          loadedRepertoire = parsed;
-          break;
-        }
-      }
-    } catch (e) {}
-  }
+    const rData = localStorage.getItem(PERMANENT_STORAGE_KEY_REPERTOIRE);
+    if (rData) loadedRepertoire = JSON.parse(rData);
+  } catch (e) {}
 
   practices = loadedPractices || JSON.parse(JSON.stringify(INITIAL_PRACTICE_DATA));
   repertoire = loadedRepertoire || JSON.parse(JSON.stringify(MASTER_REPERTOIRE));
 
-  sanitizeConductorNames();
+  // Force sanitize all "先生" occurrences out of memory & localStorage
+  sanitizeAllConductorNames();
   saveToStorage();
 }
 
-function sanitizeConductorNames() {
-  const cleanConductor = (str) => {
+function sanitizeAllConductorNames() {
+  const cleanStr = (str) => {
     if (!str) return '';
     return str.replace(/\s*先生/g, '').trim();
   };
 
   repertoire.forEach(s => {
-    if (s.conductor) s.conductor = cleanConductor(s.conductor);
+    if (s.conductor) s.conductor = cleanStr(s.conductor);
   });
 
   practices.forEach(p => {
-    if (p.conductors) p.conductors = cleanConductor(p.conductors);
+    if (p.conductors) p.conductors = cleanStr(p.conductors);
     (p.pieces || []).forEach(pc => {
-      if (pc.conductor) pc.conductor = cleanConductor(pc.conductor);
+      if (pc.conductor) pc.conductor = cleanStr(pc.conductor);
     });
   });
 }
@@ -170,49 +132,33 @@ function saveToStorage() {
   try {
     localStorage.setItem(PERMANENT_STORAGE_KEY_PRACTICES, JSON.stringify(practices));
     localStorage.setItem(PERMANENT_STORAGE_KEY_REPERTOIRE, JSON.stringify(repertoire));
-
-    ['v5', 'v4', 'v3'].forEach(v => {
-      localStorage.setItem(`brass_band_calendar_practices_${v}`, JSON.stringify(practices));
-      localStorage.setItem(`brass_band_calendar_repertoire_${v}`, JSON.stringify(repertoire));
-    });
+    localStorage.setItem('brass_band_calendar_practices_permanent', JSON.stringify(practices));
+    localStorage.setItem('brass_band_calendar_repertoire_permanent', JSON.stringify(repertoire));
   } catch (e) {
     console.error('Error saving to storage:', e);
   }
 }
 
-/* ==========================================================================
-   Z-Index Layer Management
-   ========================================================================== */
+/* Layer & View Controls */
 function bringToFront(el) {
   if (!el) return;
   highestZIndex += 20;
   el.style.zIndex = highestZIndex;
-  
   const content = el.querySelector('.modal-content');
-  if (content) {
-    content.style.zIndex = highestZIndex + 1;
-  }
+  if (content) content.style.zIndex = highestZIndex + 1;
 }
 
 function setupZIndexLayerManagement() {
   document.addEventListener('click', (e) => {
     const backdrop = e.target.closest('.modal-backdrop');
-    if (backdrop && backdrop.classList.contains('active')) {
-      bringToFront(backdrop);
-    }
-
+    if (backdrop && backdrop.classList.contains('active')) bringToFront(backdrop);
     const card = e.target.closest('.practice-card, .repertoire-card, .glass-panel');
-    if (card && !e.target.closest('.modal-backdrop')) {
-      bringToFront(card);
-    }
+    if (card && !e.target.closest('.modal-backdrop')) bringToFront(card);
   }, true);
 }
 
-/* ==========================================================================
-   Event Listeners
-   ========================================================================== */
+/* Navigation & Event Listeners */
 function setupEventListeners() {
-  // Navigation buttons
   document.getElementById('btnPrev').addEventListener('click', () => navigateDate(-1));
   document.getElementById('btnNext').addEventListener('click', () => navigateDate(1));
   document.getElementById('btnToday').addEventListener('click', () => {
@@ -221,13 +167,9 @@ function setupEventListeners() {
     render();
   });
 
-  // Admin Mode Toggle Button
   const btnAdmin = document.getElementById('btnAdminToggle');
-  if (btnAdmin) {
-    btnAdmin.addEventListener('click', promptAdminLogin);
-  }
+  if (btnAdmin) btnAdmin.addEventListener('click', promptAdminLogin);
 
-  // View switch tabs
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -237,7 +179,6 @@ function setupEventListeners() {
     });
   });
 
-  // Category Filter Chips
   document.querySelectorAll('.filter-chip').forEach(chip => {
     chip.addEventListener('click', (e) => {
       document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
@@ -247,12 +188,9 @@ function setupEventListeners() {
     });
   });
 
-  // Modal Triggers
   document.getElementById('btnAddPractice').addEventListener('click', () => {
     if (!isAdminMode) {
-      if (confirm('練習スケジュールの登録は管理者専用機能です。\n管理者モードにログインしますか？')) {
-        promptAdminLogin();
-      }
+      if (confirm('練習スケジュールの登録は管理者専用機能です。\n管理者モードにログインしますか？')) promptAdminLogin();
       return;
     }
     openPracticeModal();
@@ -260,29 +198,19 @@ function setupEventListeners() {
 
   document.getElementById('btnBackup').addEventListener('click', () => openModal('backupModal'));
   document.getElementById('btnRepertoireLibrary').addEventListener('click', openRepertoireModal);
-  
-  // Bulk Export Triggers
   document.getElementById('btnBulkExport').addEventListener('click', openBulkExportModal);
   document.getElementById('btnControlsBulkExport').addEventListener('click', openBulkExportModal);
 
-  // New Song Triggers
   document.getElementById('btnAddNewSong').addEventListener('click', () => {
-    if (!isAdminMode) {
-      promptAdminLogin();
-      return;
-    }
+    if (!isAdminMode) return promptAdminLogin();
     openEditSongModal();
   });
 
   document.getElementById('btnModalAddNewSong').addEventListener('click', () => {
-    if (!isAdminMode) {
-      promptAdminLogin();
-      return;
-    }
+    if (!isAdminMode) return promptAdminLogin();
     openEditSongModal();
   });
 
-  // Close buttons for modals
   document.querySelectorAll('.close-modal-btn, [data-close]').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const modalId = e.currentTarget.dataset.close || e.currentTarget.closest('.modal-backdrop').id;
@@ -290,31 +218,25 @@ function setupEventListeners() {
     });
   });
 
-  // Dynamic Row adders
   document.getElementById('btnAddPieceRow').addEventListener('click', () => addPieceInputRow());
   document.getElementById('btnAddTimetableRow').addEventListener('click', () => addTimetableInputRow());
   document.getElementById('btnAddSongVideoRow').addEventListener('click', () => addSongVideoInputRow());
 
-  // Form Submits
   document.getElementById('practiceForm').addEventListener('submit', handlePracticeSubmit);
   document.getElementById('editSongForm').addEventListener('submit', handleEditSongSubmit);
 
-  // Backup / Data Management
   document.getElementById('btnExportJson').addEventListener('click', exportDataAsJson);
   document.getElementById('btnImportJson').addEventListener('click', () => document.getElementById('importJsonFile').click());
   document.getElementById('importJsonFile').addEventListener('change', importDataFromJson);
   document.getElementById('btnResetData').addEventListener('click', resetToSampleData);
 
-  // Calendar Export & LINE Sharing handlers
   document.getElementById('btnLineShare').addEventListener('click', shareToLine);
   document.getElementById('btnCopyLineText').addEventListener('click', copyLineTextToClipboard);
   document.getElementById('btnDownloadIcs').addEventListener('click', downloadIcsFile);
   document.getElementById('btnTimeTreeShare').addEventListener('click', shareTimeTreeFormat);
 
-  // Song delete button
   document.getElementById('btnDeleteSong').addEventListener('click', handleDeleteSong);
 
-  // Bulk Export Modal Events
   document.getElementById('btnPresetThisMonth').addEventListener('click', () => setBulkPreset('thisMonth'));
   document.getElementById('btnPresetNextMonth').addEventListener('click', () => setBulkPreset('nextMonth'));
   document.getElementById('btnPresetAugSep').addEventListener('click', () => setBulkPreset('augSep'));
@@ -329,23 +251,13 @@ function setupEventListeners() {
   document.getElementById('btnBulkTimeTreeShare').addEventListener('click', copyBulkLineTextToClipboard);
 }
 
-/* ==========================================================================
-   Navigation Logic
-   ========================================================================== */
 function navigateDate(direction) {
-  if (currentView === 'month') {
-    currentDate.setMonth(currentDate.getMonth() + direction);
-  } else if (currentView === 'week') {
-    currentDate.setDate(currentDate.getDate() + (direction * 7));
-  } else {
-    currentDate.setDate(currentDate.getDate() + direction);
-  }
+  if (currentView === 'month') currentDate.setMonth(currentDate.getMonth() + direction);
+  else if (currentView === 'week') currentDate.setDate(currentDate.getDate() + (direction * 7));
+  else currentDate.setDate(currentDate.getDate() + direction);
   render();
 }
 
-/* ==========================================================================
-   Render Orchestrator
-   ========================================================================== */
 function render() {
   updatePeriodTitleText();
   updateAdminModeUi();
@@ -380,23 +292,16 @@ function updatePeriodTitleText() {
   const d = currentDate.getDate();
 
   const periodTextEl = document.getElementById('currentPeriodText');
-  if (currentView === 'month') {
-    periodTextEl.textContent = `${y}年 ${m}月`;
-  } else if (currentView === 'week') {
+  if (currentView === 'month') periodTextEl.textContent = `${y}年 ${m}月`;
+  else if (currentView === 'week') {
     const weekStart = getWeekStartDate(currentDate);
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekEnd.getDate() + 6);
     periodTextEl.textContent = `${weekStart.getMonth() + 1}/${weekStart.getDate()} - ${weekEnd.getMonth() + 1}/${weekEnd.getDate()}`;
-  } else if (currentView === 'repertoire') {
-    periodTextEl.textContent = `全${repertoire.length}曲 演奏プログラム`;
-  } else {
-    periodTextEl.textContent = `${y}年 ${m}月 ${d}日`;
-  }
+  } else if (currentView === 'repertoire') periodTextEl.textContent = `全${repertoire.length}曲 演奏プログラム`;
+  else periodTextEl.textContent = `${y}年 ${m}月 ${d}日`;
 }
 
-/* ==========================================================================
-   View 1 & 2: Month & Week Views
-   ========================================================================== */
 function renderMonthView() {
   const monthPanel = document.getElementById('monthView');
   monthPanel.innerHTML = `
@@ -422,14 +327,10 @@ function renderMonthView() {
   const prevLastDate = new Date(year, month, 0).getDate();
 
   const todayStr = formatDate(new Date());
-  if (!selectedDateForMobileSheet) {
-    selectedDateForMobileSheet = todayStr;
-  }
+  if (!selectedDateForMobileSheet) selectedDateForMobileSheet = todayStr;
 
   for (let i = firstDayIndex; i > 0; i--) {
-    const dayNum = prevLastDate - i + 1;
-    const cell = createDayCell(dayNum, true);
-    monthGrid.appendChild(cell);
+    monthGrid.appendChild(createDayCell(prevLastDate - i + 1, true));
   }
 
   for (let day = 1; day <= lastDate; day++) {
@@ -438,19 +339,15 @@ function renderMonthView() {
     const isSelected = dateStr === selectedDateForMobileSheet;
     
     let dayEvents = practices.filter(p => p.date === dateStr);
-    if (selectedCategory !== 'all') {
-      dayEvents = dayEvents.filter(p => p.category === selectedCategory);
-    }
+    if (selectedCategory !== 'all') dayEvents = dayEvents.filter(p => p.category === selectedCategory);
 
-    const cell = createDayCell(day, false, isToday, dateStr, dayEvents, isSelected);
-    monthGrid.appendChild(cell);
+    monthGrid.appendChild(createDayCell(day, false, isToday, dateStr, dayEvents, isSelected));
   }
 
   const totalCellsSoFar = firstDayIndex + lastDate;
   const nextDaysNeeded = (totalCellsSoFar > 35 ? 42 : 35) - totalCellsSoFar;
   for (let j = 1; j <= nextDaysNeeded; j++) {
-    const cell = createDayCell(j, true);
-    monthGrid.appendChild(cell);
+    monthGrid.appendChild(createDayCell(j, true));
   }
 
   renderMobileDaySheet();
@@ -498,10 +395,7 @@ function renderMobileDaySheet() {
 
   const targetDateStr = selectedDateForMobileSheet || formatDate(currentDate);
   let dayEvents = practices.filter(p => p.date === targetDateStr);
-
-  if (selectedCategory !== 'all') {
-    dayEvents = dayEvents.filter(p => p.category === selectedCategory);
-  }
+  if (selectedCategory !== 'all') dayEvents = dayEvents.filter(p => p.category === selectedCategory);
 
   if (dayEvents.length === 0) {
     sheetContainer.innerHTML = `
@@ -529,7 +423,6 @@ function renderMobileDaySheet() {
 function renderWeekView() {
   const weekGrid = document.querySelector('.week-view-grid');
   weekGrid.innerHTML = '';
-
   const weekStart = getWeekStartDate(currentDate);
 
   for (let i = 0; i < 7; i++) {
@@ -540,9 +433,7 @@ function renderWeekView() {
     const isToday = dateStr === formatDate(new Date());
 
     let dayEvents = practices.filter(p => p.date === dateStr);
-    if (selectedCategory !== 'all') {
-      dayEvents = dayEvents.filter(p => p.category === selectedCategory);
-    }
+    if (selectedCategory !== 'all') dayEvents = dayEvents.filter(p => p.category === selectedCategory);
 
     const col = document.createElement('div');
     col.className = `week-day-column ${isToday ? 'today' : ''}`;
@@ -572,17 +463,12 @@ function renderWeekView() {
   }
 }
 
-/* ==========================================================================
-   View 3 & 4: Day & Timetable Views
-   ========================================================================== */
 function renderDayView() {
   const container = document.getElementById('dayViewContent');
   const dateStr = formatDate(currentDate);
 
   let dayEvents = practices.filter(p => p.date === dateStr);
-  if (selectedCategory !== 'all') {
-    dayEvents = dayEvents.filter(p => p.category === selectedCategory);
-  }
+  if (selectedCategory !== 'all') dayEvents = dayEvents.filter(p => p.category === selectedCategory);
 
   if (dayEvents.length === 0) {
     container.innerHTML = `
@@ -600,21 +486,12 @@ function renderDayView() {
 
 function renderTimetableContainer() {
   const container = document.getElementById('timetableContent');
-
   let filtered = [...practices];
-  if (selectedCategory !== 'all') {
-    filtered = filtered.filter(p => p.category === selectedCategory);
-  }
-
+  if (selectedCategory !== 'all') filtered = filtered.filter(p => p.category === selectedCategory);
   filtered.sort((a, b) => a.date.localeCompare(b.date));
 
   if (filtered.length === 0) {
-    container.innerHTML = `
-      <div class="glass-panel" style="padding: 40px; text-align: center; color: var(--text-muted);">
-        <div style="font-size: 3rem; margin-bottom: 16px;">📋</div>
-        <h3>表示できる練習時間割がありません</h3>
-      </div>
-    `;
+    container.innerHTML = `<div class="glass-panel" style="padding: 40px; text-align: center; color: var(--text-muted);">表示できる練習時間割がありません</div>`;
     return;
   }
 
@@ -622,9 +499,6 @@ function renderTimetableContainer() {
   attachPracticeCardEvents(container);
 }
 
-/* ==========================================================================
-   View 5: Repertoire Library Views
-   ========================================================================== */
 function renderRepertoireMainPanel() {
   const container = document.getElementById('repertoireMainContent');
   container.innerHTML = renderRepertoireCardsHtml(repertoire);
@@ -637,17 +511,13 @@ function openRepertoireModal() {
     repertoire = JSON.parse(JSON.stringify(MASTER_REPERTOIRE));
     saveToStorage();
   }
-
   listContainer.innerHTML = renderRepertoireCardsHtml(repertoire);
   attachRepertoireEvents(listContainer);
-
   openModal('repertoireModal');
 }
 
 function renderRepertoireCardsHtml(songList) {
-  if (!songList || songList.length === 0) {
-    return `<div style="padding: 20px; text-align: center; color: var(--text-muted);">曲目が登録されていません。</div>`;
-  }
+  if (!songList || songList.length === 0) return `<div style="padding: 20px; text-align: center; color: var(--text-muted);">曲目が登録されていません。</div>`;
 
   return songList.map(song => {
     const videoBtnsHtml = (song.videos || []).map((v, idx) => `
@@ -707,20 +577,15 @@ function attachRepertoireEvents(container) {
   if (isAdminMode) {
     container.querySelectorAll('.btn-edit-song').forEach(btn => {
       btn.addEventListener('click', (e) => {
-        const songId = e.currentTarget.dataset.songid;
-        openEditSongModal(songId);
+        openEditSongModal(e.currentTarget.dataset.songid);
       });
     });
   }
 }
 
-/* ==========================================================================
-   Repertoire Song Modal Logic
-   ========================================================================== */
 function openEditSongModal(songId = null) {
   const form = document.getElementById('editSongForm');
   form.reset();
-
   const container = document.getElementById('songVideosInputsContainer');
   container.innerHTML = '';
   const deleteBtn = document.getElementById('btnDeleteSong');
@@ -758,16 +623,15 @@ function addSongVideoInputRow(video = {}) {
     <button type="button" class="btn-remove-piece" title="削除">&times;</button>
     <div class="form-row">
       <div class="form-group" style="margin-bottom: 6px;">
-        <label>動画タイトル / 演奏者ラベル</label>
-        <input type="text" class="form-control video-title-input" value="${escapeHtml(video.title || '')}" placeholder="例: 一流吹奏楽団 名演音源">
+        <label>動画タイトル</label>
+        <input type="text" class="form-control video-title-input" value="${escapeHtml(video.title || '')}" placeholder="動画タイトル">
       </div>
       <div class="form-group" style="margin-bottom: 6px;">
-        <label>YouTube URL または検索タグ</label>
-        <input type="text" class="form-control video-url-input" value="${escapeHtml(video.url || '')}" placeholder="https://www.youtube.com/watch?v=...">
+        <label>YouTube URL</label>
+        <input type="text" class="form-control video-url-input" value="${escapeHtml(video.url || '')}" placeholder="https://www.youtube.com/...">
       </div>
     </div>
   `;
-
   row.querySelector('.btn-remove-piece').addEventListener('click', () => row.remove());
   container.appendChild(row);
 }
@@ -808,7 +672,6 @@ function handleEditSongSubmit(e) {
 function handleDeleteSong() {
   const id = document.getElementById('editSongId').value;
   if (!id) return;
-
   const song = repertoire.find(s => s.id === id);
   if (song && confirm(`曲目「${song.title}」を削除しますか？`)) {
     repertoire = repertoire.filter(s => s.id !== id);
@@ -818,9 +681,6 @@ function handleDeleteSong() {
   }
 }
 
-/* ==========================================================================
-   Practice Cards Renderer
-   ========================================================================== */
 function renderPracticeCardHtml(practice, showDateBadge = false) {
   const mapUrl = getGoogleMapsUrl(practice.locationName, practice.locationAddress);
 
@@ -964,16 +824,13 @@ function attachPracticeCardEvents(container) {
 
   container.querySelectorAll('.btn-share-practice').forEach(btn => {
     btn.addEventListener('click', (e) => {
-      const id = e.currentTarget.dataset.id;
-      openExportModal(id);
+      openExportModal(e.currentTarget.dataset.id);
     });
   });
 
   if (isAdminMode) {
     container.querySelectorAll('.btn-edit-practice').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        openPracticeModal(e.currentTarget.dataset.id);
-      });
+      btn.addEventListener('click', (e) => openPracticeModal(e.currentTarget.dataset.id));
     });
 
     container.querySelectorAll('.btn-delete-practice').forEach(btn => {
@@ -989,7 +846,6 @@ function attachPracticeCardEvents(container) {
   }
 }
 
-/* Modal Engine */
 function openModal(modalId) {
   const modalEl = document.getElementById(modalId);
   modalEl.classList.add('active');
@@ -1003,7 +859,6 @@ function closeModal(modalId) {
 function openPracticeModal(id = null) {
   const form = document.getElementById('practiceForm');
   form.reset();
-
   document.getElementById('piecesInputsContainer').innerHTML = '';
   document.getElementById('timetableInputsContainer').innerHTML = '';
 
@@ -1027,7 +882,6 @@ function openPracticeModal(id = null) {
     document.getElementById('modalTitle').innerHTML = '📅 練習スケジュールの登録';
     document.getElementById('practiceId').value = '';
     document.getElementById('inputDate').value = formatDate(currentDate);
-
     addPieceInputRow();
     addTimetableInputRow({ startTime: '18:00', endTime: '21:00', category: '合奏', title: '夜間通常練習', details: '' });
   }
@@ -1059,7 +913,7 @@ function addPieceInputRow(piece = {}) {
         <input type="text" class="form-control piece-title-input" value="${escapeHtml(piece.title || '')}">
       </div>
       <div class="form-group">
-        <label>指揮・指導者</label>
+        <label>指揮者 (公文 / 下川)</label>
         <input type="text" class="form-control piece-conductor-input" value="${escapeHtml(piece.conductor || '')}">
       </div>
     </div>
@@ -1168,7 +1022,6 @@ function handlePracticeSubmit(e) {
 function openDetailModal(id) {
   const p = practices.find(item => item.id === id);
   if (!p) return;
-
   const body = document.getElementById('detailModalBody');
   body.innerHTML = renderPracticeCardHtml(p);
   attachPracticeCardEvents(body);
@@ -1211,7 +1064,6 @@ function openYoutubeMultiVideoModal(songTitle, videos = [], activeIdx = 0) {
   openModal('detailModal');
 }
 
-/* Bulk Export & Backup Functions */
 function openBulkExportModal() {
   setBulkPreset('augSep');
   openModal('bulkExportModal');
