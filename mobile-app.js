@@ -1,6 +1,6 @@
 /**
  * 吹奏楽専用カレンダー Smartphone App Main Logic (mobile-app.js)
- * Shares exact same permanent localStorage data keys with desktop PC app
+ * View-Only Mode (閲覧専用) & Admin Mode (管理者用) Separation + Rich Timetable YouTube Links + "先生" Removal
  */
 
 import { INITIAL_PRACTICE_DATA, MASTER_REPERTOIRE } from './sample-data.js';
@@ -8,6 +8,7 @@ import { INITIAL_PRACTICE_DATA, MASTER_REPERTOIRE } from './sample-data.js';
 // Shared Storage Keys with PC version
 const PERMANENT_STORAGE_KEY_PRACTICES = 'brass_band_calendar_practices_permanent';
 const PERMANENT_STORAGE_KEY_REPERTOIRE = 'brass_band_calendar_repertoire_permanent';
+const ADMIN_MODE_STORAGE_KEY = 'brass_band_calendar_is_admin';
 
 // Global State
 let practices = [];
@@ -16,16 +17,71 @@ let currentDate = new Date();
 let currentView = 'month'; // 'month' | 'day' | 'timetable' | 'repertoire'
 let selectedCategory = 'all';
 let selectedDateForMobileSheet = null;
-let highestZIndex = 5000;
+let isAdminMode = false;
 
 document.addEventListener('DOMContentLoaded', () => {
   initStorage();
+  checkAdminMode();
   setupMobileEventListeners();
   renderMobile();
 });
 
 /* ==========================================================================
-   Storage Engine (PC版と100%同一データを読み書き・完全同期)
+   Admin / View-Only Mode Engine
+   ========================================================================== */
+function checkAdminMode() {
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('admin') === '1') {
+    isAdminMode = true;
+    localStorage.setItem(ADMIN_MODE_STORAGE_KEY, 'true');
+  } else {
+    isAdminMode = localStorage.getItem(ADMIN_MODE_STORAGE_KEY) === 'true';
+  }
+  updateAdminModeUi();
+}
+
+function updateAdminModeUi() {
+  const badge = document.getElementById('mAdminModeBadge');
+  if (badge) {
+    if (isAdminMode) {
+      badge.innerHTML = `🔑 <span style="color:#fef08a;">管理者モード (全編集権限)</span>`;
+      badge.className = 'm-admin-badge active';
+    } else {
+      badge.innerHTML = `👁️ <span style="color:#cbd5e1;">閲覧専用モード (配布・団員向け)</span>`;
+      badge.className = 'm-admin-badge';
+    }
+  }
+
+  // Toggle visibility of admin-only edit controls
+  document.querySelectorAll('.admin-only').forEach(el => {
+    el.style.display = isAdminMode ? '' : 'none';
+  });
+}
+
+function promptAdminLogin() {
+  if (isAdminMode) {
+    if (confirm('管理者モードを終了し、閲覧専用モード（配布用表示）に戻しますか？')) {
+      isAdminMode = false;
+      localStorage.setItem(ADMIN_MODE_STORAGE_KEY, 'false');
+      updateAdminModeUi();
+      renderMobile();
+    }
+  } else {
+    const code = prompt('管理者パスコードを入力してください:\n(初期パスコード: 1234)');
+    if (code === '1234' || code === 'admin') {
+      isAdminMode = true;
+      localStorage.setItem(ADMIN_MODE_STORAGE_KEY, 'true');
+      alert('管理者モードに切り替わりました。練習予定や曲目の追加・編集が可能です。');
+      updateAdminModeUi();
+      renderMobile();
+    } else if (code !== null) {
+      alert('パスコードが正しくありません。');
+    }
+  }
+}
+
+/* ==========================================================================
+   Storage Engine & "先生" Title Removal Sanitizer
    ========================================================================== */
 function initStorage() {
   let loadedPractices = null;
@@ -80,7 +136,27 @@ function initStorage() {
   practices = loadedPractices || JSON.parse(JSON.stringify(INITIAL_PRACTICE_DATA));
   repertoire = loadedRepertoire || JSON.parse(JSON.stringify(MASTER_REPERTOIRE));
 
+  // Sanitize data: Remove all "先生" suffixes from conductors
+  sanitizeConductorNames();
   saveToStorage();
+}
+
+function sanitizeConductorNames() {
+  const cleanConductor = (str) => {
+    if (!str) return '';
+    return str.replace(/\s*先生/g, '').trim();
+  };
+
+  repertoire.forEach(s => {
+    if (s.conductor) s.conductor = cleanConductor(s.conductor);
+  });
+
+  practices.forEach(p => {
+    if (p.conductors) p.conductors = cleanConductor(p.conductors);
+    (p.pieces || []).forEach(pc => {
+      if (pc.conductor) pc.conductor = cleanConductor(pc.conductor);
+    });
+  });
 }
 
 function saveToStorage() {
@@ -110,6 +186,9 @@ function setupMobileEventListeners() {
     renderMobile();
   });
 
+  // Admin Mode Toggle Badge
+  document.getElementById('mAdminModeBadge').addEventListener('click', promptAdminLogin);
+
   // Bottom Navigation Items Switcher
   document.querySelectorAll('.m-nav-item[data-view]').forEach(item => {
     item.addEventListener('click', (e) => {
@@ -132,8 +211,23 @@ function setupMobileEventListeners() {
   });
 
   // Bottom Add Practice Trigger
-  document.getElementById('mBtnAddPractice').addEventListener('click', () => openMobilePracticeModal());
-  document.getElementById('mBtnAddNewSong').addEventListener('click', () => openMobileEditSongModal());
+  document.getElementById('mBtnAddPractice').addEventListener('click', () => {
+    if (!isAdminMode) {
+      if (confirm('練習予定の追加は管理者専用機能です。\n管理者モードにログインしますか？')) {
+        promptAdminLogin();
+      }
+      return;
+    }
+    openMobilePracticeModal();
+  });
+
+  document.getElementById('mBtnAddNewSong').addEventListener('click', () => {
+    if (!isAdminMode) {
+      promptAdminLogin();
+      return;
+    }
+    openMobileEditSongModal();
+  });
 
   // Backup & Bulk Export Triggers
   document.getElementById('mBtnBackup').addEventListener('click', () => openMobileSheet('mBackupModal'));
@@ -187,6 +281,7 @@ function navigateDate(dir) {
    ========================================================================== */
 function renderMobile() {
   updateMobilePeriodTitle();
+  updateAdminModeUi();
 
   document.getElementById('mMonthView').style.display = 'none';
   document.getElementById('mDayView').style.display = 'none';
@@ -228,7 +323,6 @@ function updateMobilePeriodTitle() {
    ========================================================================== */
 function renderMobileMonthView() {
   const grid = document.querySelector('.m-month-grid');
-  // Preserve weekday header row
   grid.innerHTML = `
     <div class="m-weekday sun">日</div>
     <div class="m-weekday">月</div>
@@ -327,7 +421,7 @@ function renderMobileDaySheet() {
     <div class="m-day-sheet-card">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
         <span style="font-size: 1rem; font-weight: 800; color: var(--color-brass-light);">📅 ${dateStr} の練習詳細</span>
-        <button class="m-btn-sm" onclick="document.querySelectorAll('.m-nav-item[data-view=\\'day\\']')[0].click()">詳細を見る ➔</button>
+        <button class="m-btn-sm" onclick="document.querySelectorAll('.m-nav-item[data-view=\\'day\\']')[0].click()">日表示で開く ➔</button>
       </div>
       ${dayEvents.map(evt => renderMobilePracticeCardHtml(evt)).join('')}
     </div>
@@ -405,9 +499,7 @@ function renderMobileRepertoireView() {
             <h3 style="font-size: 1.05rem; font-weight: 800; color: var(--text-primary); margin-top: 4px;">🎼 ${escapeHtml(song.title)}</h3>
             <div style="font-size: 0.78rem; color: var(--text-muted);">${escapeHtml(song.composer || '')}</div>
           </div>
-          <div style="display: flex; gap: 4px;">
-            <button class="m-btn-sm btn-edit-song" data-songid="${song.id}">✏️ 編集</button>
-          </div>
+          ${isAdminMode ? `<button class="m-btn-sm btn-edit-song" data-songid="${song.id}">✏️ 編集</button>` : ''}
         </div>
 
         <div style="font-size: 0.82rem; margin-top: 6px; color: var(--text-gold);">
@@ -436,19 +528,22 @@ function renderMobileRepertoireView() {
     });
   });
 
-  container.querySelectorAll('.btn-edit-song').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      openMobileEditSongModal(e.currentTarget.dataset.songid);
+  if (isAdminMode) {
+    container.querySelectorAll('.btn-edit-song').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        openMobileEditSongModal(e.currentTarget.dataset.songid);
+      });
     });
-  });
+  }
 }
 
 /* ==========================================================================
-   Practice Cards Renderer (Full-width Touch Buttons)
+   Practice Cards Renderer (Full-width Touch Buttons & Rich Timetable Slots)
    ========================================================================== */
 function renderMobilePracticeCardHtml(practice, showDate = false) {
-  const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(practice.locationName + ' ' + (practice.locationAddress || ''))}`;
+  const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((practice.locationName || '') + ' ' + (practice.locationAddress || ''))}`;
 
+  // Main practice pieces
   const piecesHtml = (practice.pieces || []).map(piece => {
     const matchedRepSong = repertoire.find(s => s.title === piece.title);
     let videos = piece.videos && piece.videos.length > 0 ? [...piece.videos] : [];
@@ -477,15 +572,16 @@ function renderMobilePracticeCardHtml(practice, showDate = false) {
     `;
   }).join('');
 
+  // Timetable Slots WITH YouTube playback buttons and assigned song badges (PC版と同等のリッチ表示)
   const timetableHtml = (practice.timetable || []).map(slot => {
     const assignedSongs = (slot.pieceIds || []).map(songId => repertoire.find(s => s.id === songId)).filter(Boolean);
 
     const slotSongsHtml = assignedSongs.map(song => {
       const vList = song.videos || [];
       return `
-        <div style="margin-top: 4px;">
-          <div style="font-size:0.8rem; font-weight:700; color:var(--color-brass-light);">🎼 ${escapeHtml(song.title)}</div>
-          <button class="m-btn-yt-highlight btn-play-slot-video" data-songtitle="${escapeHtml(song.title)}" data-videos='${JSON.stringify(vList).replace(/'/g, "&apos;")}' style="margin-top:2px;">
+        <div style="margin-top: 6px; background: rgba(229,193,88,0.1); border: 1px solid var(--glass-border-gold); padding: 6px 8px; border-radius: 6px;">
+          <div style="font-size:0.82rem; font-weight:800; color:var(--color-brass-light);">🎼 ${escapeHtml(song.title)}</div>
+          <button class="m-btn-yt-highlight btn-play-slot-video" data-songtitle="${escapeHtml(song.title)}" data-videos='${JSON.stringify(vList).replace(/'/g, "&apos;")}' style="margin-top:4px;">
             🎬 YouTube再生
           </button>
         </div>
@@ -494,8 +590,8 @@ function renderMobilePracticeCardHtml(practice, showDate = false) {
 
     return `
       <div class="m-slot-item">
-        <div style="font-size:0.8rem; font-weight:800; color:var(--color-brass-light);">⏰ ${escapeHtml(slot.startTime)} - ${escapeHtml(slot.endTime)} [${escapeHtml(slot.category || '合奏')}]</div>
-        <div style="font-size:0.85rem; font-weight:700; color:var(--text-primary);">${escapeHtml(slot.title || '')}</div>
+        <div style="font-size:0.82rem; font-weight:800; color:var(--color-brass-light);">⏰ ${escapeHtml(slot.startTime)} - ${escapeHtml(slot.endTime)} <span class="m-badge m-dot-${slot.category || '合奏'}">${escapeHtml(slot.category || '合奏')}</span></div>
+        <div style="font-size:0.88rem; font-weight:700; color:var(--text-primary); margin-top:2px;">${escapeHtml(slot.title || '')} ${slot.details ? `<span style="font-size:0.78rem; color:var(--text-muted);">(${escapeHtml(slot.details)})</span>` : ''}</div>
         ${slotSongsHtml}
       </div>
     `;
@@ -506,22 +602,30 @@ function renderMobilePracticeCardHtml(practice, showDate = false) {
       <div style="display:flex; justify-content:space-between; align-items:flex-start;">
         <div>
           <h3 class="m-card-title">${escapeHtml(practice.title)}</h3>
-          ${showDate ? `<div style="font-size:0.8rem; color:var(--color-brass-light); font-weight:700;">📅 ${practice.date}</div>` : ''}
+          ${showDate ? `<div style="font-size:0.82rem; color:var(--color-brass-light); font-weight:700; margin-top:2px;">📅 ${practice.date}</div>` : ''}
         </div>
         <span class="m-badge m-dot-${practice.category}">${practice.category}</span>
       </div>
 
-      <div style="margin-top:6px; font-size:0.8rem; color:var(--text-secondary);">
-        📍 ${escapeHtml(practice.locationName || '場所未定')}
-        <a href="${mapUrl}" target="_blank" class="m-btn-sm" style="margin-left:6px; text-decoration:none;">🗺️ Map</a>
+      <div style="margin-top:6px; font-size:0.8rem; color:var(--text-secondary); display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
+        ${practice.locationName ? `<div>📍 ${escapeHtml(practice.locationName)} <a href="${mapUrl}" target="_blank" class="m-btn-sm" style="text-decoration:none;">🗺️ Map</a></div>` : ''}
+        ${practice.conductors ? `<div>👨‍🏫 指揮: <strong>${escapeHtml(practice.conductors)}</strong></div>` : ''}
       </div>
 
-      ${piecesHtml ? `<div style="margin-top:10px;"><div style="font-size:0.82rem; font-weight:800; color:var(--color-brass-light);">🎼 練習曲 & 参考音源</div>${piecesHtml}</div>` : ''}
-      ${timetableHtml ? `<div style="margin-top:10px;"><div style="font-size:0.82rem; font-weight:800; color:var(--color-brass-light);">⏱️ 時間割</div>${timetableHtml}</div>` : ''}
+      ${piecesHtml ? `<div style="margin-top:10px;"><div style="font-size:0.82rem; font-weight:800; color:var(--color-brass-light);">🎼 練習曲 & 参考音源 (YouTube)</div>${piecesHtml}</div>` : ''}
+      ${timetableHtml ? `<div style="margin-top:10px;"><div style="font-size:0.82rem; font-weight:800; color:var(--color-brass-light);">⏱️ 練習時間割</div>${timetableHtml}</div>` : ''}
+
+      ${practice.generalNotes ? `
+        <div style="margin-top:8px; padding:6px 10px; background:rgba(229,193,88,0.08); border-radius:6px; border:1px dashed var(--glass-border-gold); font-size:0.78rem; color:var(--text-secondary);">
+          ℹ️ ${escapeHtml(practice.generalNotes)}
+        </div>
+      ` : ''}
 
       <div style="display:flex; gap:6px; margin-top:12px;">
         <button class="m-btn-line btn-share-practice" data-id="${practice.id}" style="flex:1;">📲 LINE共有</button>
-        <button class="m-btn-glass btn-edit-practice" data-id="${practice.id}">✏️ 編集</button>
+        ${isAdminMode ? `
+          <button class="m-btn-glass btn-edit-practice" data-id="${practice.id}">✏️ 編集</button>
+        ` : ''}
       </div>
     </div>
   `;
@@ -541,17 +645,26 @@ function attachMobilePracticeCardEvents(container) {
     btn.addEventListener('click', (e) => {
       const p = practices.find(item => item.id === e.currentTarget.dataset.id);
       if (p) {
-        const text = `🎵【吹奏楽 練習連絡】\n📌 ${p.title}\n📅 日時: ${p.date}\n📍 場所: ${p.locationName || '未定'}\n📱 アプリで確認:\n${window.location.href}`;
+        let text = `🎵【吹奏楽 練習連絡】\n📌 ${p.title}\n📅 日時: ${p.date}\n📍 場所: ${p.locationName || '未定'}\n👨‍🏫 指揮: ${p.conductors || '未定'}\n`;
+        if (p.timetable && p.timetable.length > 0) {
+          text += `\n⏰ 【当日の時間割】\n`;
+          p.timetable.forEach(t => {
+            text += `・${t.startTime}-${t.endTime} [${t.category}] ${t.title}\n`;
+          });
+        }
+        text += `\n📱 アプリで確認・参考音源再生:\n${window.location.href}`;
         window.open(`https://line.me/R/msg/text/?${encodeURIComponent(text)}`, '_blank');
       }
     });
   });
 
-  container.querySelectorAll('.btn-edit-practice').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      openMobilePracticeModal(e.currentTarget.dataset.id);
+  if (isAdminMode) {
+    container.querySelectorAll('.btn-edit-practice').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        openMobilePracticeModal(e.currentTarget.dataset.id);
+      });
     });
-  });
+  }
 }
 
 /* ==========================================================================
@@ -628,12 +741,24 @@ function addMobileTimetableRow(slot = {}) {
   const row = document.createElement('div');
   row.className = 'm-slot-item';
 
+  const assignedPieceIds = slot.pieceIds || [];
+  const songCheckboxesHtml = repertoire.map(song => `
+    <label style="display:flex; align-items:center; gap:6px; font-size:0.78rem; margin-top:2px; color:var(--text-primary);">
+      <input type="checkbox" class="m-slot-piece-cb" value="${song.id}" ${assignedPieceIds.includes(song.id) ? 'checked' : ''}>
+      <span>${escapeHtml(song.title)}</span>
+    </label>
+  `).join('');
+
   row.innerHTML = `
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px; margin-bottom:4px;">
       <input type="time" class="m-input m-slot-start" value="${slot.startTime || '18:00'}">
       <input type="time" class="m-input m-slot-end" value="${slot.endTime || '21:00'}">
     </div>
     <input type="text" class="m-input m-slot-title" value="${escapeHtml(slot.title || '')}" placeholder="時間枠タイトル">
+    <div style="margin-top:6px; background:rgba(0,0,0,0.2); padding:6px; border-radius:6px;">
+      <div style="font-size:0.75rem; font-weight:700; color:var(--color-brass-light);">🎼 合わせる曲目 (複数可)</div>
+      ${songCheckboxesHtml}
+    </div>
   `;
 
   container.appendChild(row);
@@ -662,11 +787,13 @@ function handleMobilePracticeSubmit(e) {
   document.querySelectorAll('#mTimetableContainer .m-slot-item').forEach(row => {
     const sTitle = row.querySelector('.m-slot-title').value.trim();
     if (sTitle) {
+      const checkedIds = Array.from(row.querySelectorAll('.m-slot-piece-cb:checked')).map(cb => cb.value);
       timetable.push({
         startTime: row.querySelector('.m-slot-start').value,
         endTime: row.querySelector('.m-slot-end').value,
         category: '合奏',
-        title: sTitle
+        title: sTitle,
+        pieceIds: checkedIds
       });
     }
   });
@@ -844,7 +971,7 @@ function shareBulkToLine() {
 
   let text = `🎵【吹奏楽 一括練習連絡】\n🗓️ 期間: ${startStr} ～ ${endStr}\n------------------\n`;
   selectedPractices.forEach((p, idx) => {
-    text += `\n【${idx + 1}】${p.date} (${p.category})\n📌 ${p.title}\n📍 ${p.locationName || '未定'}\n`;
+    text += `\n【${idx + 1}】${p.date} (${p.category})\n📌 ${p.title}\n📍 ${p.locationName || '未定'}\n👨‍🏫 指揮: ${p.conductors || '未定'}\n`;
   });
   text += `\n📱 アプリ:\n${window.location.href}`;
 
@@ -858,7 +985,7 @@ function copyBulkLineTextToClipboard() {
 
   let text = `🎵【吹奏楽 一括練習連絡】\n🗓️ 期間: ${startStr} ～ ${endStr}\n------------------\n`;
   selectedPractices.forEach((p, idx) => {
-    text += `\n【${idx + 1}】${p.date} (${p.category})\n📌 ${p.title}\n📍 ${p.locationName || '未定'}\n`;
+    text += `\n【${idx + 1}】${p.date} (${p.category})\n📌 ${p.title}\n📍 ${p.locationName || '未定'}\n👨‍🏫 指揮: ${p.conductors || '未定'}\n`;
   });
 
   navigator.clipboard.writeText(text).then(() => {

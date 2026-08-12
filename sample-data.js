@@ -1,8 +1,8 @@
 /**
- * 吹奏楽練習カレンダー 演奏曲目ライブラリ & 8月・9月練習スケジュール (正解版完全反映)
+ * 吹奏楽練習カレンダー 演奏曲目ライブラリ & 8月・9月練習スケジュール (「先生」排除・公文 / 下川表記完全統一版)
  */
 
-// 演奏曲目マスターライブラリ (全12曲) - ユーザー指定の正確な動画タイトル＆リンク
+// 演奏曲目マスターライブラリ (全12曲)
 export const MASTER_REPERTOIRE = [
   {
     id: "rep-1",
@@ -23,7 +23,7 @@ export const MASTER_REPERTOIRE = [
     no: "2",
     title: "おジャ魔女カーニバル!!",
     composer: "MAHO堂 / Arr. 吹奏楽版",
-    conductor: "公文 先生",
+    conductor: "公文",
     points: `【ポップスならではのアッパー感とドライブ感】・冒頭のファンファーレ：ハイトーンのピッチとアタックをキレ良く！ ・サビのバックグラウンド（トロンボーン・サックスのリフ）：裏拍のアクセントをタメすぎずに跳ねる。 ・木管16分音符のオブリガート：指回しを滑らかに、音量を殺さずクリアに。`,
     videos: [
       { title: "おジャ魔女カーニバル!! 吹奏楽名演ライブ", url: "https://www.youtube.com/results?search_query=%E3%81%8A%E3%82%B8%E3%83%A3%E9%AD%94%E5%A5%B3%E3%82%AB%E3%83%BC%E3%83%8B%E3%83%90%E3%83%AB+%E5%90%B9%E5%A5%8F%E6%A5%BD", description: "シエナWO・名門高校吹奏楽部によるノリ抜群のライブ演奏" },
@@ -36,7 +36,7 @@ export const MASTER_REPERTOIRE = [
     no: "3",
     title: "リトル・マーメイド・メドレー",
     composer: "A.メンケン / Arr. 星出尚志 (NSB)",
-    conductor: "下川 先生",
+    conductor: "下川",
     points: `【ディズニーの表情豊かな世界観の表現】・Under the Sea：カリプソ・スチールドラム風の軽やかなパーカッションビート。 ・Part of Your World：木管ソロの歌い込みとホルンの包み込むようなハーモニー。 ・Kiss the Girl：ミディアムテンポのアンサンブル。`,
     videos: [
       { title: "リトル・マーメイド・メドレー (星出尚志編) 東京佼成WO", url: "https://www.youtube.com/results?search_query=%E3%83%AA%E3%83%88%E3%83%AB%E3%83%9E%E3%83%BC%E3%83%A1%E3%82%A4%E3%83%89%E3%83%A1%E3%83%89%E3%83%AC%E3%83%BC+%E5%90%B9%E5%A5%8F%E6%A5%BD+%E6%98%9F%E5%87%BA%E5%B0%9A%E5%BF%97", description: "New Sounds in Brass 公式模範演奏" },
@@ -49,7 +49,7 @@ export const MASTER_REPERTOIRE = [
     no: "4",
     title: "好きすぎて滅！",
     composer: "Arr. 吹奏楽ポップス",
-    conductor: "下川 先生",
+    conductor: "下川",
     points: `【キャッチーなメロディとノリの良さ】・リズムセクション（ベース・ドラム）の縦の線をビシッと合わせる。 ・サビでの管楽器全員のフォルテシモ：音が割れないよう美しいブラスサウンドを意識。`,
     videos: [
       { title: "好きすぎて滅！ 吹奏楽アレンジ名演", url: "https://www.youtube.com/results?search_query=%E5%A5%BD%E3%81%8D%E3%81%99%E3%81%8E%E3%81%A6%E6%BB%85+%E5%90%B9%E5%A5%8F%E6%A5%BD", description: "ノリとサウンドバランスの参考" }
@@ -61,7 +61,7 @@ export const MASTER_REPERTOIRE = [
     no: "1",
     title: "21世紀のスキッツォイドマン",
     composer: "R.フリップ / Arr. 三浦秀秋",
-    conductor: "公文 先生",
+    conductor: "公文",
     points: `【プログレ・ブラスの重厚なリフと変拍子】・冒頭のユニゾンリフ：歪みを感じさせる重厚な金管とアルトサックスの咆哮。 ・中間部の高速変拍子セクション：カウントを全員で共有。 ・ドラムソロ〜ラスト：カタルシスに向けたダイナミックなクレッシェンド。`,
     videos: [
       { title: "21世紀のスキッツォイドマン シエナWO (三浦秀秋編)", url: "https://www.youtube.com/results?search_query=21%E4%B8%96%E7%B4%80%E3%81%AE%E3%82%B9%E3%82%AD%E3%83%83%E3%83%84%E3%82%A9%E3%82%A4%E3%83%89%E3%83%9E%E3%83%B3+%E5%90%B9%E5%A5%8F%E6%A5%BD+%E3%82%B7%E3%82%A8%E3%83%8A", description: "シエナ・ウインド・オーケストラによる伝説的名演" },
@@ -74,7 +74,7 @@ export const MASTER_REPERTOIRE = [
     no: "2",
     title: "カンタービレ・コレクション",
     composer: "Arr. 吹奏楽スペシャル",
-    conductor: "下川 先生",
+    conductor: "下川",
     points: `【美しい歌（Cantabile）の表現】・メロディパートのブレスコントロールとアゴギク。 ・ハーモニーパート：純正律を意識した美しいピッチ合わせ。`,
     videos: [
       { title: "カンタービレ・コレクション 吹奏楽名演", url: "https://www.youtube.com/results?search_query=%E3%82%AB%E3%83%B3%E3%82%BF%E3%83%BC%E3%83%93%E3%83%AC%E3%82%B3%E3%83%AC%E3%82%AF%E3%82%B7%E3%83%A7%E3%83%B3+%E5%90%B9%E5%A5%8F%E6%A5%BD", description: "美しい歌い込みとハーモニーの参考" }
@@ -86,7 +86,7 @@ export const MASTER_REPERTOIRE = [
     no: "3",
     title: "Narco",
     composer: "Timmy Trumpet / Arr. 吹奏楽",
-    conductor: "公文 先生",
+    conductor: "公文",
     points: `【トランペットソロ＆EDMスタイルのフェス感】・トランペットソロ：圧倒的な存在感とハイノートの輝き！ ・重低音セクション：EDMのドロップのような重低音ビート。`,
     videos: [
       { title: "Narco トランペットソロ＆ブラスバンド名演", url: "https://www.youtube.com/results?search_query=Narco+Timmy+Trumpet+brass+band", description: "ソロトランペットとEDMブラス名演" },
@@ -99,7 +99,7 @@ export const MASTER_REPERTOIRE = [
     no: "4",
     title: "マツケンサンバⅡ",
     composer: "宮川彬良 / Arr. 真島俊夫 (NSB)",
-    conductor: "公文 先生",
+    conductor: "公文",
     points: `【会場一体となる輝かしいサンバサウンド】・イントロの華やかな金管ファンファーレ。 ・サンバパーカッション：本場のラテンリズムを徹底。 ・「オレ！」のかけ声の全団員の一致。`,
     videos: [
       { title: "マツケンサンバⅡ (真島俊夫編) 東京佼成WO", url: "https://www.youtube.com/results?search_query=%E3%83%9E%E3%83%84%E3%82%B1%E3%83%B3%E3%82%B5%E3%83%B3%E3%83%902+%E5%90%B9%E5%A5%8F%E6%A5%BD+%E7%9C%9F%E5%B3%B6%E4%BF%8A%E5%A4%AB", description: "真島俊夫アレンジの金字塔名演" },
@@ -112,7 +112,7 @@ export const MASTER_REPERTOIRE = [
     no: "5",
     title: "ルパン三世のテーマ",
     composer: "大野雄二 / Arr. 星出尚志",
-    conductor: "公文 先生",
+    conductor: "公文",
     points: `【ジャジーなスタイルとスリリングな展開】・ソロ回し：ジャズのニュアンスと音色。 ・ブラスのシャウト：音圧を保ちつつクールな音切り。`,
     videos: [
       { title: "ルパン三世のテーマ (NSB星出尚志編) 佼成WO", url: "https://www.youtube.com/results?search_query=%E3%83%AB%E3%83%91%E3%83%B3%E4%B8%89%E4%B8%96%E3%81%AE%E3%83%86%E3%83%BC%E3%83%9E+%E5%90%B9%E5%A5%8F%E6%A5%BD+%E6%98%9F%E5%87%BA%E5%B0%9A%E5%BF%97", description: "王道ジャズブラスの模範演奏" }
@@ -137,7 +137,7 @@ export const MASTER_REPERTOIRE = [
     no: "1",
     title: "ディスコ・キッド",
     composer: "東海林修",
-    conductor: "公文 先生",
+    conductor: "公文",
     points: `【吹奏楽課題曲の永遠の名曲】・スネアドラムのディスコビートと全体の手拍子。 ・中間部のアルトサックス・ソロのアンニュイなメロディ。`,
     videos: [
       { title: "ディスコ・キッド 課題曲名演 (東京佼成WO)", url: "https://www.youtube.com/results?search_query=%E3%83%86%E3%82%99%E3%82%B9%E3%82%B3%E3%82%AD%E3%83%83%E3%83%89%E3%82%99+%E5%90%B9%E5%A5%8F%E6%A5%BD", description: "元祖・課題曲名演音源" }
@@ -157,7 +157,7 @@ export const MASTER_REPERTOIRE = [
   }
 ];
 
-// 初期練習スケジュール (8月・9月の通常練習 & 長時間練習) - ユーザーの正解画像通り曲目＆YouTube紐付け完了
+// 初期練習スケジュール (8月・9月の通常練習 & 長時間練習)
 export const INITIAL_PRACTICE_DATA = [
   {
     id: "p-20260802",
