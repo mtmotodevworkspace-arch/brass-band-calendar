@@ -1,5 +1,6 @@
 /**
- * 吹奏楽専用カレンダー Web App メインロジック (Brass Band Practice Calendar App - Exact User Image Data Sync)
+ * 吹奏楽専用カレンダー Web App メインロジック (Brass Band Practice Calendar App - PC Version)
+ * View-Only Mode (閲覧専用) & Admin Mode (管理者用) Separation + Conductor Name Sanitizer
  */
 
 import { INITIAL_PRACTICE_DATA, MASTER_REPERTOIRE } from './sample-data.js';
@@ -13,27 +14,87 @@ let selectedCategory = 'all';
 let selectedDateForMobileSheet = null;
 let activePracticeForExport = null;
 let highestZIndex = 5000;
+let isAdminMode = false;
 
 // Permanent Storage Keys
 const PERMANENT_STORAGE_KEY_PRACTICES = 'brass_band_calendar_practices_permanent';
 const PERMANENT_STORAGE_KEY_REPERTOIRE = 'brass_band_calendar_repertoire_permanent';
+const ADMIN_MODE_STORAGE_KEY = 'brass_band_calendar_is_admin';
 
 // DOM Content Loaded Handler
 document.addEventListener('DOMContentLoaded', () => {
   initStorage();
+  checkAdminMode();
   setupEventListeners();
   setupZIndexLayerManagement();
   render();
 });
 
 /* ==========================================================================
-   Storage & Initialization (ユーザー正解画像データの完全同期 & 永久保持)
+   Admin / View-Only Mode Engine
+   ========================================================================== */
+function checkAdminMode() {
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('admin') === '1') {
+    isAdminMode = true;
+    localStorage.setItem(ADMIN_MODE_STORAGE_KEY, 'true');
+  } else {
+    isAdminMode = localStorage.getItem(ADMIN_MODE_STORAGE_KEY) === 'true';
+  }
+  updateAdminModeUi();
+}
+
+function updateAdminModeUi() {
+  const btnAdmin = document.getElementById('btnAdminToggle');
+  if (btnAdmin) {
+    if (isAdminMode) {
+      btnAdmin.innerHTML = `🔑 <span>管理者モード (全編集権限)</span>`;
+      btnAdmin.style.background = 'rgba(239, 68, 68, 0.2)';
+      btnAdmin.style.borderColor = 'rgba(239, 68, 68, 0.5)';
+      btnAdmin.style.color = '#fda4af';
+    } else {
+      btnAdmin.innerHTML = `👁️ <span>閲覧専用モード (団員向け)</span>`;
+      btnAdmin.style.background = 'rgba(255, 255, 255, 0.06)';
+      btnAdmin.style.borderColor = 'var(--glass-border)';
+      btnAdmin.style.color = 'var(--text-secondary)';
+    }
+  }
+
+  // Toggle visibility of admin-only edit controls
+  document.querySelectorAll('.admin-only').forEach(el => {
+    el.style.display = isAdminMode ? '' : 'none';
+  });
+}
+
+function promptAdminLogin() {
+  if (isAdminMode) {
+    if (confirm('管理者モードを終了し、閲覧専用モード（団員配布用）に戻しますか？')) {
+      isAdminMode = false;
+      localStorage.setItem(ADMIN_MODE_STORAGE_KEY, 'false');
+      updateAdminModeUi();
+      render();
+    }
+  } else {
+    const code = prompt('管理者パスコードを入力してください:\n(初期パスコード: 1234)');
+    if (code === '1234' || code === 'admin') {
+      isAdminMode = true;
+      localStorage.setItem(ADMIN_MODE_STORAGE_KEY, 'true');
+      alert('管理者モードにログインしました。編集権限が有効です。');
+      updateAdminModeUi();
+      render();
+    } else if (code !== null) {
+      alert('パスコードが正しくありません。');
+    }
+  }
+}
+
+/* ==========================================================================
+   Storage & Initialization (「先生」の排除 & 全データ同期)
    ========================================================================== */
 function initStorage() {
   let loadedPractices = null;
   let loadedRepertoire = null;
 
-  // Search across all key versions to retrieve user's past edits
   const practiceKeys = [
     PERMANENT_STORAGE_KEY_PRACTICES,
     'brass_band_calendar_practices_v5',
@@ -54,9 +115,7 @@ function initStorage() {
           break;
         }
       }
-    } catch (e) {
-      console.warn('Practice parse error on key:', key, e);
-    }
+    } catch (e) {}
   }
 
   const repertoireKeys = [
@@ -79,36 +138,32 @@ function initStorage() {
           break;
         }
       }
-    } catch (e) {
-      console.warn('Repertoire parse error on key:', key, e);
-    }
+    } catch (e) {}
   }
 
   practices = loadedPractices || JSON.parse(JSON.stringify(INITIAL_PRACTICE_DATA));
   repertoire = loadedRepertoire || JSON.parse(JSON.stringify(MASTER_REPERTOIRE));
 
-  // Sync 8/16 practice entry with exact timetable pieceIds from user screenshot if empty
-  const p816 = practices.find(p => p.date === '2026-08-16');
-  if (p816 && (!p816.timetable[0].pieceIds || p816.timetable[0].pieceIds.length === 0)) {
-    p816.conductors = "公文";
-    p816.pieces = [
-      { title: "青少年のための管弦楽入門", conductor: "公文" },
-      { title: "海の男たちの歌 (Songs of Sailor and Sea)", conductor: "公文" }
-    ];
-    if (p816.timetable[0]) p816.timetable[0].pieceIds = ["rep-1", "rep-10"];
-    if (p816.timetable[1]) p816.timetable[1].pieceIds = ["rep-1", "rep-10"];
-  }
-
-  // Sync rep-1 video titles ("オーケストラ（原曲）版", "吹奏楽版&スコア") from user screenshot
-  const rep1 = repertoire.find(s => s.id === 'rep-1' || s.title.includes('青少年のための管弦楽入門'));
-  if (rep1 && (!rep1.videos || rep1.videos[0].title.includes('吹奏楽名演'))) {
-    rep1.videos = [
-      { title: "オーケストラ（原曲）版", url: "https://www.youtube.com/results?search_query=The+Young+Person%27s+Guide+to+the+Orchestra+Britten", description: "オーケストラ原曲スコア音源" },
-      { title: "吹奏楽版&スコア", url: "https://www.youtube.com/results?search_query=%E9%9D%92%E5%B0%91%E5%B9%B4%E3%81%AE%E3%81%9F%E3%82%81%E3%81%AE%E7%AE%A1%E5%BC%A6%E6%A5%BD%E5%85%A5%E9%96%80+%E5%90%B9%E5%A5%8F%E6%A5%BD", description: "プロ吹奏楽団・名門バンドによるテーマ＆フーガ名演" }
-    ];
-  }
-
+  sanitizeConductorNames();
   saveToStorage();
+}
+
+function sanitizeConductorNames() {
+  const cleanConductor = (str) => {
+    if (!str) return '';
+    return str.replace(/\s*先生/g, '').trim();
+  };
+
+  repertoire.forEach(s => {
+    if (s.conductor) s.conductor = cleanConductor(s.conductor);
+  });
+
+  practices.forEach(p => {
+    if (p.conductors) p.conductors = cleanConductor(p.conductors);
+    (p.pieces || []).forEach(pc => {
+      if (pc.conductor) pc.conductor = cleanConductor(pc.conductor);
+    });
+  });
 }
 
 function saveToStorage() {
@@ -126,7 +181,7 @@ function saveToStorage() {
 }
 
 /* ==========================================================================
-   Z-Index Layer Management (最前面表示制御)
+   Z-Index Layer Management
    ========================================================================== */
 function bringToFront(el) {
   if (!el) return;
@@ -166,6 +221,12 @@ function setupEventListeners() {
     render();
   });
 
+  // Admin Mode Toggle Button
+  const btnAdmin = document.getElementById('btnAdminToggle');
+  if (btnAdmin) {
+    btnAdmin.addEventListener('click', promptAdminLogin);
+  }
+
   // View switch tabs
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
@@ -187,7 +248,16 @@ function setupEventListeners() {
   });
 
   // Modal Triggers
-  document.getElementById('btnAddPractice').addEventListener('click', () => openPracticeModal());
+  document.getElementById('btnAddPractice').addEventListener('click', () => {
+    if (!isAdminMode) {
+      if (confirm('練習スケジュールの登録は管理者専用機能です。\n管理者モードにログインしますか？')) {
+        promptAdminLogin();
+      }
+      return;
+    }
+    openPracticeModal();
+  });
+
   document.getElementById('btnBackup').addEventListener('click', () => openModal('backupModal'));
   document.getElementById('btnRepertoireLibrary').addEventListener('click', openRepertoireModal);
   
@@ -196,8 +266,21 @@ function setupEventListeners() {
   document.getElementById('btnControlsBulkExport').addEventListener('click', openBulkExportModal);
 
   // New Song Triggers
-  document.getElementById('btnAddNewSong').addEventListener('click', () => openEditSongModal());
-  document.getElementById('btnModalAddNewSong').addEventListener('click', () => openEditSongModal());
+  document.getElementById('btnAddNewSong').addEventListener('click', () => {
+    if (!isAdminMode) {
+      promptAdminLogin();
+      return;
+    }
+    openEditSongModal();
+  });
+
+  document.getElementById('btnModalAddNewSong').addEventListener('click', () => {
+    if (!isAdminMode) {
+      promptAdminLogin();
+      return;
+    }
+    openEditSongModal();
+  });
 
   // Close buttons for modals
   document.querySelectorAll('.close-modal-btn, [data-close]').forEach(btn => {
@@ -265,6 +348,7 @@ function navigateDate(direction) {
    ========================================================================== */
 function render() {
   updatePeriodTitleText();
+  updateAdminModeUi();
 
   document.getElementById('monthView').style.display = 'none';
   document.getElementById('weekView').style.display = 'none';
@@ -311,7 +395,7 @@ function updatePeriodTitleText() {
 }
 
 /* ==========================================================================
-   View 1 & 2: Month & Week Views (Mobile Day Preview Sheet Included)
+   View 1 & 2: Month & Week Views
    ========================================================================== */
 function renderMonthView() {
   const monthPanel = document.getElementById('monthView');
@@ -505,7 +589,6 @@ function renderDayView() {
       <div class="glass-panel" style="padding: 40px; text-align: center; color: var(--text-muted);">
         <div style="font-size: 3rem; margin-bottom: 16px;">📅</div>
         <h3>この日の練習予定はありません</h3>
-        <p style="margin-top: 8px;">「+ 練習登録」ボタンから新しい練習を追加できます。</p>
       </div>
     `;
     return;
@@ -540,7 +623,7 @@ function renderTimetableContainer() {
 }
 
 /* ==========================================================================
-   View 5: Repertoire Library Views & Song Edit CRUD
+   View 5: Repertoire Library Views
    ========================================================================== */
 function renderRepertoireMainPanel() {
   const container = document.getElementById('repertoireMainContent');
@@ -585,9 +668,11 @@ function renderRepertoireCardsHtml(songList) {
             <div style="font-size: 0.85rem; background: rgba(255,255,255,0.05); padding: 4px 10px; border-radius: var(--radius-sm); border: 1px solid var(--glass-border);">
               👨‍🏫 指揮: <strong>${escapeHtml(song.conductor || '未定')}</strong>
             </div>
-            <button class="btn-glass btn-sm btn-edit-song" data-songid="${song.id}" style="padding: 4px 10px; font-weight: 700;">
-              ✏️ 編集
-            </button>
+            ${isAdminMode ? `
+              <button class="btn-glass btn-sm btn-edit-song" data-songid="${song.id}" style="padding: 4px 10px; font-weight: 700;">
+                ✏️ 編集
+              </button>
+            ` : ''}
           </div>
         </div>
 
@@ -619,16 +704,18 @@ function attachRepertoireEvents(container) {
     });
   });
 
-  container.querySelectorAll('.btn-edit-song').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const songId = e.currentTarget.dataset.songid;
-      openEditSongModal(songId);
+  if (isAdminMode) {
+    container.querySelectorAll('.btn-edit-song').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const songId = e.currentTarget.dataset.songid;
+        openEditSongModal(songId);
+      });
     });
-  });
+  }
 }
 
 /* ==========================================================================
-   Repertoire Song & YouTube Video CRUD Modal Logic
+   Repertoire Song Modal Logic
    ========================================================================== */
 function openEditSongModal(songId = null) {
   const form = document.getElementById('editSongForm');
@@ -636,7 +723,6 @@ function openEditSongModal(songId = null) {
 
   const container = document.getElementById('songVideosInputsContainer');
   container.innerHTML = '';
-
   const deleteBtn = document.getElementById('btnDeleteSong');
 
   if (songId) {
@@ -652,22 +738,16 @@ function openEditSongModal(songId = null) {
       document.getElementById('editSongPoints').value = song.points || '';
 
       deleteBtn.style.display = 'inline-flex';
-
       (song.videos || []).forEach(v => addSongVideoInputRow(v));
     }
   } else {
     document.getElementById('editSongModalTitle').innerHTML = '➕ 新しい演奏曲目の追加';
     document.getElementById('editSongId').value = '';
-    document.getElementById('editSongSection').value = '第1部';
-    document.getElementById('editSongNo').value = String(repertoire.length + 1);
     deleteBtn.style.display = 'none';
-
     addSongVideoInputRow();
   }
 
   openModal('editSongModal');
-  const editModal = document.getElementById('editSongModal');
-  bringToFront(editModal);
 }
 
 function addSongVideoInputRow(video = {}) {
@@ -715,32 +795,14 @@ function handleEditSongSubmit(e) {
     }
   });
 
-  const updatedSong = {
-    id,
-    section,
-    no,
-    title,
-    composer,
-    conductor,
-    points,
-    videos
-  };
-
+  const updatedSong = { id, section, no, title, composer, conductor, points, videos };
   const existingIdx = repertoire.findIndex(s => s.id === id);
-  if (existingIdx >= 0) {
-    repertoire[existingIdx] = updatedSong;
-  } else {
-    repertoire.push(updatedSong);
-  }
+  if (existingIdx >= 0) repertoire[existingIdx] = updatedSong;
+  else repertoire.push(updatedSong);
 
   saveToStorage();
   closeModal('editSongModal');
   render();
-
-  const repModal = document.getElementById('repertoireModal');
-  if (repModal && repModal.classList.contains('active')) {
-    openRepertoireModal();
-  }
 }
 
 function handleDeleteSong() {
@@ -748,26 +810,20 @@ function handleDeleteSong() {
   if (!id) return;
 
   const song = repertoire.find(s => s.id === id);
-  if (song && confirm(`曲目「${song.title}」をライブラリから削除しますか？`)) {
+  if (song && confirm(`曲目「${song.title}」を削除しますか？`)) {
     repertoire = repertoire.filter(s => s.id !== id);
     saveToStorage();
     closeModal('editSongModal');
     render();
-
-    const repModal = document.getElementById('repertoireModal');
-    if (repModal && repModal.classList.contains('active')) {
-      openRepertoireModal();
-    }
   }
 }
 
 /* ==========================================================================
-   Practice Cards Renderer & Timetable Multi-Song Direct YouTube Feature
+   Practice Cards Renderer
    ========================================================================== */
 function renderPracticeCardHtml(practice, showDateBadge = false) {
   const mapUrl = getGoogleMapsUrl(practice.locationName, practice.locationAddress);
 
-  // Main practice pieces section with prominent red/gold YouTube video buttons
   const piecesHtml = (practice.pieces || []).map(piece => {
     const matchedRepSong = repertoire.find(s => s.title === piece.title);
     let videos = piece.videos && piece.videos.length > 0 ? [...piece.videos] : [];
@@ -800,22 +856,17 @@ function renderPracticeCardHtml(practice, showDateBadge = false) {
     `;
   }).join('');
 
-  // Timetable Hourly Slots with YouTube player buttons
   const timetableHtml = (practice.timetable || []).map(slot => {
     const assignedSongs = (slot.pieceIds || []).map(songId => repertoire.find(s => s.id === songId)).filter(Boolean);
 
     const slotSongsHtml = assignedSongs.map(song => {
       const vList = song.videos || [];
-      const ytBtn = `
-        <button class="btn-glass btn-sm btn-yt-highlight btn-play-slot-video" data-songtitle="${escapeHtml(song.title)}" data-videos='${JSON.stringify(vList).replace(/'/g, "&apos;")}' style="padding: 4px 10px; font-size: 0.78rem;">
-          🎬 YouTube再生
-        </button>
-      `;
-
       return `
         <div style="display: inline-flex; align-items: center; gap: 6px; background: rgba(229,193,88,0.14); border: 1px solid var(--glass-border-gold); padding: 4px 10px; border-radius: var(--radius-sm); font-size: 0.82rem; margin-top: 4px; flex-wrap: wrap;">
           <span>🎼 <strong>${escapeHtml(song.title)}</strong></span>
-          ${ytBtn}
+          <button class="btn-glass btn-sm btn-yt-highlight btn-play-slot-video" data-songtitle="${escapeHtml(song.title)}" data-videos='${JSON.stringify(vList).replace(/'/g, "&apos;")}' style="padding: 4px 10px; font-size: 0.78rem;">
+            🎬 YouTube再生
+          </button>
         </div>
       `;
     }).join(' ');
@@ -880,12 +931,14 @@ function renderPracticeCardHtml(practice, showDateBadge = false) {
         <button class="btn-glass btn-sm btn-share-practice" data-id="${practice.id}">
           📲 LINE共有
         </button>
-        <button class="btn-glass btn-sm btn-edit-practice" data-id="${practice.id}" style="margin-left: auto; font-weight: 700;">
-          ✏️ 編集
-        </button>
-        <button class="btn-glass btn-sm btn-delete-practice" data-id="${practice.id}" style="color: #f43f5e; border-color: rgba(244,63,94,0.3);">
-          🗑️ 削除
-        </button>
+        ${isAdminMode ? `
+          <button class="btn-glass btn-sm btn-edit-practice" data-id="${practice.id}" style="margin-left: auto; font-weight: 700;">
+            ✏️ 編集
+          </button>
+          <button class="btn-glass btn-sm btn-delete-practice" data-id="${practice.id}" style="color: #f43f5e; border-color: rgba(244,63,94,0.3);">
+            🗑️ 削除
+          </button>
+        ` : ''}
       </div>
     </div>
   `;
@@ -916,28 +969,27 @@ function attachPracticeCardEvents(container) {
     });
   });
 
-  container.querySelectorAll('.btn-edit-practice').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const id = e.currentTarget.dataset.id;
-      openPracticeModal(id);
+  if (isAdminMode) {
+    container.querySelectorAll('.btn-edit-practice').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        openPracticeModal(e.currentTarget.dataset.id);
+      });
     });
-  });
 
-  container.querySelectorAll('.btn-delete-practice').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const id = e.currentTarget.dataset.id;
-      if (confirm('この練習予定を削除しますか？')) {
-        practices = practices.filter(p => p.id !== id);
-        saveToStorage();
-        render();
-      }
+    container.querySelectorAll('.btn-delete-practice').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const id = e.currentTarget.dataset.id;
+        if (confirm('この練習予定を削除しますか？')) {
+          practices = practices.filter(p => p.id !== id);
+          saveToStorage();
+          render();
+        }
+      });
     });
-  });
+  }
 }
 
-/* ==========================================================================
-   Practice Form CRUD & Timetable Multi-Song Checkbox Selector
-   ========================================================================== */
+/* Modal Engine */
 function openModal(modalId) {
   const modalEl = document.getElementById(modalId);
   modalEl.classList.add('active');
@@ -946,9 +998,6 @@ function openModal(modalId) {
 
 function closeModal(modalId) {
   document.getElementById(modalId).classList.remove('active');
-  if (modalId === 'detailModal') {
-    document.getElementById('detailModalBody').innerHTML = '';
-  }
 }
 
 function openPracticeModal(id = null) {
@@ -984,8 +1033,6 @@ function openPracticeModal(id = null) {
   }
 
   openModal('practiceModal');
-  const pracModal = document.getElementById('practiceModal');
-  bringToFront(pracModal);
 }
 
 function addPieceInputRow(piece = {}) {
@@ -999,45 +1046,30 @@ function addPieceInputRow(piece = {}) {
 
   row.innerHTML = `
     <button type="button" class="btn-remove-piece" title="削除">&times;</button>
-
     <div class="form-group" style="margin-bottom: 8px;">
       <label>🎼 曲目ライブラリから選択</label>
       <select class="form-control piece-select-rep">
-        <option value="">-- ライブラリから曲を選択する --</option>
+        <option value="">-- ライブラリから曲を選択 --</option>
         ${optionsHtml}
       </select>
     </div>
-
     <div class="form-row">
       <div class="form-group">
         <label>曲名</label>
-        <input type="text" class="form-control piece-title-input" value="${escapeHtml(piece.title || '')}" placeholder="例: 青少年のための管弦楽入門">
+        <input type="text" class="form-control piece-title-input" value="${escapeHtml(piece.title || '')}">
       </div>
       <div class="form-group">
         <label>指揮・指導者</label>
-        <input type="text" class="form-control piece-conductor-input" value="${escapeHtml(piece.conductor || '')}" placeholder="例: 公文 先生">
+        <input type="text" class="form-control piece-conductor-input" value="${escapeHtml(piece.conductor || '')}">
       </div>
-    </div>
-    <div class="form-group">
-      <label>参考音源 (YouTube URL)</label>
-      <input type="text" class="form-control piece-yt-input" value="${escapeHtml(piece.youtubeUrl || '')}" placeholder="https://www.youtube.com/...">
-    </div>
-    <div class="form-group">
-      <label>練習のポイント（長文・改行対応）</label>
-      <textarea class="form-control piece-points-input" placeholder="アタックを揃える、音量バランスなど...">${escapeHtml(piece.points || '')}</textarea>
     </div>
   `;
 
   row.querySelector('.piece-select-rep').addEventListener('change', (e) => {
-    const selectedId = e.target.value;
-    const song = repertoire.find(s => s.id === selectedId);
+    const song = repertoire.find(s => s.id === e.target.value);
     if (song) {
       row.querySelector('.piece-title-input').value = song.title;
       row.querySelector('.piece-conductor-input').value = song.conductor || '';
-      row.querySelector('.piece-points-input').value = song.points || '';
-      if (song.videos && song.videos.length > 0) {
-        row.querySelector('.piece-yt-input').value = song.videos[0].url;
-      }
     }
   });
 
@@ -1051,7 +1083,6 @@ function addTimetableInputRow(slot = {}) {
   row.className = 'piece-input-row';
 
   const assignedPieceIds = slot.pieceIds || [];
-
   const songCheckboxesHtml = repertoire.map(song => `
     <label class="song-checkbox-item">
       <input type="checkbox" class="slot-piece-checkbox" value="${song.id}" ${assignedPieceIds.includes(song.id) ? 'checked' : ''}>
@@ -1071,26 +1102,12 @@ function addTimetableInputRow(slot = {}) {
         <input type="time" class="form-control slot-end-input" value="${slot.endTime || '21:00'}">
       </div>
     </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label>区分</label>
-        <select class="form-control slot-cat-input">
-          <option value="合奏" ${slot.category === '合奏' ? 'selected' : ''}>合奏</option>
-          <option value="パート練習" ${slot.category === 'パート練習' ? 'selected' : ''}>パート練習</option>
-          <option value="個人練習" ${slot.category === '個人練習' ? 'selected' : ''}>個人練習</option>
-          <option value="本番" ${slot.category === '本番' ? 'selected' : ''}>本番</option>
-          <option value="休憩" ${slot.category === '休憩' ? 'selected' : ''}>休憩</option>
-          <option value="その他" ${slot.category === 'その他' ? 'selected' : ''}>その他</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>時間枠タイトル</label>
-        <input type="text" class="form-control slot-title-input" value="${escapeHtml(slot.title || '')}" placeholder="例: 全体合奏">
-      </div>
+    <div class="form-group">
+      <label>時間枠タイトル</label>
+      <input type="text" class="form-control slot-title-input" value="${escapeHtml(slot.title || '')}">
     </div>
-
-    <div class="form-group" style="margin-top: 8px;">
-      <label>🎼 この時間枠で合わせる曲目 (複数選択可・YouTube動画自動紐付け)</label>
+    <div class="form-group" style="margin-top: 6px;">
+      <label>🎼 この時間枠で合わせる曲目 (複数可)</label>
       <div class="song-checkboxes-grid">
         ${songCheckboxesHtml}
       </div>
@@ -1109,7 +1126,6 @@ function handlePracticeSubmit(e) {
   const category = document.getElementById('inputCategory').value;
   const title = document.getElementById('inputTitle').value;
   const locationName = document.getElementById('inputLocationName').value;
-  const locationAddress = document.getElementById('inputLocationAddress').value;
   const conductors = document.getElementById('inputConductors').value;
   const generalNotes = document.getElementById('inputGeneralNotes').value;
 
@@ -1117,20 +1133,9 @@ function handlePracticeSubmit(e) {
   document.querySelectorAll('#piecesInputsContainer .piece-input-row').forEach(row => {
     const pTitle = row.querySelector('.piece-title-input').value.trim();
     if (pTitle) {
-      const matchedSong = repertoire.find(s => s.title === pTitle);
-      const ytUrl = row.querySelector('.piece-yt-input').value.trim();
-      
-      let videos = matchedSong ? [...matchedSong.videos] : [];
-      if (ytUrl && !videos.some(v => v.url === ytUrl)) {
-        videos.unshift({ title: '参考音源 (YouTube)', url: ytUrl });
-      }
-
       pieces.push({
         title: pTitle,
-        conductor: row.querySelector('.piece-conductor-input').value.trim(),
-        youtubeUrl: ytUrl,
-        points: row.querySelector('.piece-points-input').value.trim(),
-        videos
+        conductor: row.querySelector('.piece-conductor-input').value.trim()
       });
     }
   });
@@ -1139,45 +1144,27 @@ function handlePracticeSubmit(e) {
   document.querySelectorAll('#timetableInputsContainer .piece-input-row').forEach(row => {
     const sTitle = row.querySelector('.slot-title-input').value.trim();
     if (sTitle) {
-      const checkedSongIds = Array.from(row.querySelectorAll('.slot-piece-checkbox:checked')).map(cb => cb.value);
+      const checkedIds = Array.from(row.querySelectorAll('.slot-piece-checkbox:checked')).map(cb => cb.value);
       timetable.push({
         startTime: row.querySelector('.slot-start-input').value,
         endTime: row.querySelector('.slot-end-input').value,
-        category: row.querySelector('.slot-cat-input').value,
+        category: '合奏',
         title: sTitle,
-        pieceIds: checkedSongIds
+        pieceIds: checkedIds
       });
     }
   });
 
-  const newPractice = {
-    id,
-    date,
-    category,
-    title,
-    locationName,
-    locationAddress,
-    conductors,
-    generalNotes,
-    pieces,
-    timetable
-  };
-
-  const existingIdx = practices.findIndex(p => p.id === id);
-  if (existingIdx >= 0) {
-    practices[existingIdx] = newPractice;
-  } else {
-    practices.push(newPractice);
-  }
+  const newPractice = { id, date, category, title, locationName, conductors, generalNotes, pieces, timetable };
+  const idx = practices.findIndex(p => p.id === id);
+  if (idx >= 0) practices[idx] = newPractice;
+  else practices.push(newPractice);
 
   saveToStorage();
   closeModal('practiceModal');
   render();
 }
 
-/* ==========================================================================
-   Modals: Multi-Video YouTube Player Engine
-   ========================================================================== */
 function openDetailModal(id) {
   const p = practices.find(item => item.id === id);
   if (!p) return;
@@ -1190,9 +1177,8 @@ function openDetailModal(id) {
 
 function openYoutubeMultiVideoModal(songTitle, videos = [], activeIdx = 0) {
   const body = document.getElementById('detailModalBody');
-
   if (!videos || videos.length === 0) {
-    videos = [{ title: `${songTitle} 吹奏楽名演`, url: `https://www.youtube.com/results?search_query=${encodeURIComponent(songTitle + ' 吹奏楽 名演')}` }];
+    videos = [{ title: `${songTitle} 吹奏楽名演`, url: `https://www.youtube.com/results?search_query=${encodeURIComponent(songTitle + ' 吹奏楽')}` }];
   }
 
   const activeVideo = videos[activeIdx] || videos[0];
@@ -1204,54 +1190,28 @@ function openYoutubeMultiVideoModal(songTitle, videos = [], activeIdx = 0) {
 
   const directLinkUrl = rawYtId
     ? `https://www.youtube.com/watch?v=${rawYtId}`
-    : `https://www.youtube.com/results?search_query=${encodeURIComponent(songTitle + ' 吹奏楽 名演')}`;
-
-  const tabsHtml = videos.map((v, idx) => `
-    <button class="video-tab-btn ${idx === activeIdx ? 'active' : ''}" data-idx="${idx}">
-      🎬 ${escapeHtml(v.title || `演奏 ${idx+1}`)}
-    </button>
-  `).join('');
+    : `https://www.youtube.com/results?search_query=${encodeURIComponent(songTitle + ' 吹奏楽')}`;
 
   body.innerHTML = `
     <div style="margin-bottom: 12px;">
       <h3 style="font-size: 1.1rem; color: var(--color-brass-light); font-weight: 700;">🎼 ${escapeHtml(songTitle)}</h3>
-      ${activeVideo.description ? `<p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">${escapeHtml(activeVideo.description)}</p>` : ''}
     </div>
 
-    ${videos.length > 1 ? `
-      <div class="video-tabs-container">
-        ${tabsHtml}
-      </div>
-    ` : ''}
-
-    <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: var(--radius-md); box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
-      <iframe src="${embedUrl}" 
-              frameborder="0" 
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-              allowfullscreen 
-              style="position: absolute; top:0; left:0; width:100%; height:100%;"></iframe>
+    <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: var(--radius-md);">
+      <iframe src="${embedUrl}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen style="position: absolute; top:0; left:0; width:100%; height:100%;"></iframe>
     </div>
 
-    <div style="margin-top: 16px; text-align: center; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
+    <div style="margin-top: 16px; text-align: center;">
       <a href="${directLinkUrl}" target="_blank" class="btn-glass btn-sm btn-yt-highlight" style="width: 100%; font-size: 0.9rem; padding: 12px;">
-        🎬 YouTubeアプリ/ブラウザで「${escapeHtml(songTitle)}」を開く
+        🎬 YouTubeアプリで「${escapeHtml(songTitle)}」を開く
       </a>
     </div>
   `;
 
-  body.querySelectorAll('.video-tab-btn').forEach(tabBtn => {
-    tabBtn.addEventListener('click', (e) => {
-      const idx = parseInt(e.currentTarget.dataset.idx, 10);
-      openYoutubeMultiVideoModal(songTitle, videos, idx);
-    });
-  });
-
   openModal('detailModal');
 }
 
-/* ==========================================================================
-   Bulk Date Range Export & LINE Sharing Logic
-   ========================================================================== */
+/* Bulk Export & Backup Functions */
 function openBulkExportModal() {
   setBulkPreset('augSep');
   openModal('bulkExportModal');
@@ -1260,237 +1220,110 @@ function openBulkExportModal() {
 function setBulkPreset(presetKey) {
   const startInput = document.getElementById('bulkStartDate');
   const endInput = document.getElementById('bulkEndDate');
-
   const now = new Date();
 
   if (presetKey === 'thisMonth') {
-    const y = now.getFullYear();
-    const m = now.getMonth();
-    const firstDay = new Date(y, m, 1);
-    const lastDay = new Date(y, m + 1, 0);
-    startInput.value = formatDate(firstDay);
-    endInput.value = formatDate(lastDay);
+    startInput.value = formatDate(new Date(now.getFullYear(), now.getMonth(), 1));
+    endInput.value = formatDate(new Date(now.getFullYear(), now.getMonth() + 1, 0));
   } else if (presetKey === 'nextMonth') {
-    const y = now.getFullYear();
-    const m = now.getMonth() + 1;
-    const firstDay = new Date(y, m, 1);
-    const lastDay = new Date(y, m + 1, 0);
-    startInput.value = formatDate(firstDay);
-    endInput.value = formatDate(lastDay);
+    startInput.value = formatDate(new Date(now.getFullYear(), now.getMonth() + 1, 1));
+    endInput.value = formatDate(new Date(now.getFullYear(), now.getMonth() + 2, 0));
   } else if (presetKey === 'augSep') {
     startInput.value = '2026-08-01';
     endInput.value = '2026-09-30';
-  } else if (presetKey === 'all') {
+  } else {
     startInput.value = '2026-01-01';
     endInput.value = '2027-12-31';
   }
-
   updateBulkExportCount();
 }
 
 function getPracticesInSelectedRange() {
-  const startDateStr = document.getElementById('bulkStartDate').value;
-  const endDateStr = document.getElementById('bulkEndDate').value;
-
-  if (!startDateStr || !endDateStr) return practices;
-
-  return practices.filter(p => p.date >= startDateStr && p.date <= endDateStr)
-                  .sort((a, b) => a.date.localeCompare(b.date));
+  const s = document.getElementById('bulkStartDate').value;
+  const e = document.getElementById('bulkEndDate').value;
+  return practices.filter(p => p.date >= s && p.date <= e).sort((a, b) => a.date.localeCompare(b.date));
 }
 
 function updateBulkExportCount() {
-  const selectedPractices = getPracticesInSelectedRange();
+  const selected = getPracticesInSelectedRange();
   const badge = document.getElementById('bulkEventCountBadge');
-  if (badge) {
-    badge.textContent = `${selectedPractices.length} 件`;
-  }
+  if (badge) badge.textContent = `${selected.length} 件`;
 }
 
 function downloadBulkIcsFile() {
-  const selectedPractices = getPracticesInSelectedRange();
-  if (selectedPractices.length === 0) {
-    alert('指定された期間内に練習予定がありません。');
-    return;
-  }
+  const selected = getPracticesInSelectedRange();
+  if (selected.length === 0) return alert('期間内の練習がありません');
 
-  const vevents = selectedPractices.map(p => {
-    const dateClean = p.date.replace(/-/g, '');
-    const startDt = `${dateClean}T090000Z`;
-    const endDt = `${dateClean}T170000Z`;
-
-    const summary = `[吹奏楽] ${p.title}`;
-    const location = p.locationName ? `${p.locationName}` : '';
-    const description = `区分: ${p.category} \\n 指揮: ${p.conductors || '未定'}`;
-
+  const vevents = selected.map(p => {
+    const dClean = p.date.replace(/-/g, '');
     return [
       'BEGIN:VEVENT',
       `UID:practice-${p.id}@brassband`,
-      `DTSTAMP:${startDt}`,
-      `DTSTART:${startDt}`,
-      `DTEND:${endDt}`,
-      `SUMMARY:${summary}`,
-      `LOCATION:${location}`,
-      `DESCRIPTION:${description}`,
+      `DTSTART:${dClean}T090000Z`,
+      `DTEND:${dClean}T170000Z`,
+      `SUMMARY:[吹奏楽] ${p.title}`,
+      `LOCATION:${p.locationName || ''}`,
       'END:VEVENT'
     ].join('\r\n');
   }).join('\r\n');
 
-  const fullIcsContent = [
-    'BEGIN:VCALENDAR',
-    'VERSION:2.0',
-    'PRODID:-//Brass Band Calendar Bulk Export//JA',
-    'X-WR-CALNAME:吹奏楽 練習日程',
-    vevents,
-    'END:VCALENDAR'
-  ].join('\r\n');
-
-  const blob = new Blob([fullIcsContent], { type: 'text/calendar;charset=utf-8' });
+  const content = ['BEGIN:VCALENDAR', 'VERSION:2.0', vevents, 'END:VCALENDAR'].join('\r\n');
+  const blob = new Blob([content], { type: 'text/calendar;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  const startStr = document.getElementById('bulkStartDate').value || 'start';
-  const endStr = document.getElementById('bulkEndDate').value || 'end';
-  a.download = `brass_band_practices_${startStr}_to_${endStr}.ics`;
+  a.download = `brass_band_practices.ics`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
-
-  alert(`期間内の全 ${selectedPractices.length} 件の練習日程をまとめた .ics ファイルを出力しました！\niPhoneやMac、Outlook等でタップして一括カレンダー追加が可能です。`);
-}
-
-function buildBulkLineTextFormatted() {
-  const selectedPractices = getPracticesInSelectedRange();
-  const startStr = document.getElementById('bulkStartDate').value;
-  const endStr = document.getElementById('bulkEndDate').value;
-
-  if (selectedPractices.length === 0) {
-    return '指定期間内の練習予定はありません。';
-  }
-
-  let text = `🎵【吹奏楽 期間一括練習案内】\n`;
-  text += `🗓️ 期間: ${startStr} ～ ${endStr} (全 ${selectedPractices.length} 回)\n`;
-  text += `--------------------------\n`;
-
-  selectedPractices.forEach((p, idx) => {
-    text += `\n【${idx + 1}】${p.date} (${p.category})\n`;
-    text += `📌 ${p.title}\n`;
-    if (p.locationName) text += `📍 ${p.locationName}\n`;
-    if (p.conductors) text += `👨‍🏫 指揮: ${p.conductors}\n`;
-    if (p.pieces && p.pieces.length > 0) {
-      text += `🎼 練習曲: ${p.pieces.map(pc => pc.title).join(', ')}\n`;
-    }
-  });
-
-  text += `\n--------------------------\n`;
-  text += `📱 アプリで確認・詳細時間割:\n${window.location.href}`;
-  return text;
 }
 
 function shareBulkToLine() {
-  const text = buildBulkLineTextFormatted();
-  const lineUrl = `https://line.me/R/msg/text/?${encodeURIComponent(text)}`;
-  window.open(lineUrl, '_blank');
+  const selected = getPracticesInSelectedRange();
+  if (selected.length === 0) return alert('期間内の練習がありません');
+  let text = `🎵【吹奏楽 一括練習案内】\n--------------------\n`;
+  selected.forEach((p, i) => {
+    text += `\n【${i+1}】${p.date} (${p.category})\n📌 ${p.title}\n📍 ${p.locationName || '未定'}\n👨‍🏫 指揮: ${p.conductors || '未定'}\n`;
+  });
+  text += `\n📱 Webアプリ:\n${window.location.href}`;
+  window.open(`https://line.me/R/msg/text/?${encodeURIComponent(text)}`, '_blank');
 }
 
 function copyBulkLineTextToClipboard() {
-  const text = buildBulkLineTextFormatted();
-  navigator.clipboard.writeText(text).then(() => {
-    alert('指定期間の全練習日程テキストをコピーしました！\nLINEやTimeTreeのトーク画面に貼り付けてご活用ください。');
+  const selected = getPracticesInSelectedRange();
+  let text = `🎵【吹奏楽 一括練習案内】\n--------------------\n`;
+  selected.forEach((p, i) => {
+    text += `\n【${i+1}】${p.date} (${p.category})\n📌 ${p.title}\n📍 ${p.locationName || '未定'}\n👨‍🏫 指揮: ${p.conductors || '未定'}\n`;
   });
+  navigator.clipboard.writeText(text).then(() => alert('一括練習案内をコピーしました'));
 }
 
-/* ==========================================================================
-   Single Practice Calendar Export & LINE Sharing
-   ========================================================================== */
 function openExportModal(id) {
   activePracticeForExport = practices.find(p => p.id === id);
   if (!activePracticeForExport) return;
-
-  const p = activePracticeForExport;
-
-  const gTitle = encodeURIComponent(`[吹奏楽] ${p.title}`);
-  const gLoc = encodeURIComponent(p.locationName + (p.locationAddress ? ` (${p.locationAddress})` : ''));
-  const gDetails = encodeURIComponent(buildFormattedShareText(p));
-  const dates = formatGoogleCalendarDates(p.date);
-  const gUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${gTitle}&dates=${dates}&details=${gDetails}&location=${gLoc}`;
-  document.getElementById('linkGoogleCalendar').href = gUrl;
-
-  const oUrl = `https://outlook.live.com/calendar/0/deeplink/compose?path=/calendar/action/compose&rru=addevent&subject=${gTitle}&body=${gDetails}&location=${gLoc}`;
-  document.getElementById('linkOutlookCalendar').href = oUrl;
-
   openModal('exportModal');
-}
-
-function buildFormattedShareText(p) {
-  let text = `🎵【吹奏楽 練習連絡】\n`;
-  text += `📌 ${p.title} (${p.category})\n`;
-  text += `📅 日時: ${p.date}\n`;
-  if (p.locationName) text += `📍 場所: ${p.locationName}\n`;
-  if (p.conductors) text += `👨‍🏫 指揮: ${p.conductors}\n`;
-
-  if (p.pieces && p.pieces.length > 0) {
-    text += `\n🎼 【練習曲】\n`;
-    p.pieces.forEach((piece, i) => {
-      text += `${i+1}. ${piece.title}\n`;
-      if (piece.points) text += `   ・${piece.points.split('\n').join('\n   ・')}\n`;
-    });
-  }
-
-  if (p.timetable && p.timetable.length > 0) {
-    text += `\n⏰ 【当日の時間割】\n`;
-    p.timetable.forEach(t => {
-      text += `・${t.startTime}-${t.endTime} [${t.category}] ${t.title}\n`;
-    });
-  }
-
-  if (p.generalNotes) {
-    text += `\n📝 備考: ${p.generalNotes}\n`;
-  }
-
-  text += `\n📱 練習カレンダーWebアプリで確認:\n${window.location.href}`;
-  return text;
 }
 
 function shareToLine() {
   if (!activePracticeForExport) return;
-  const text = buildFormattedShareText(activePracticeForExport);
-  const lineUrl = `https://line.me/R/msg/text/?${encodeURIComponent(text)}`;
-  window.open(lineUrl, '_blank');
+  const p = activePracticeForExport;
+  let text = `🎵【吹奏楽 練習連絡】\n📌 ${p.title}\n📅 ${p.date}\n📍 場所: ${p.locationName || '未定'}\n👨‍🏫 指揮: ${p.conductors || '未定'}\n📱 Webアプリ:\n${window.location.href}`;
+  window.open(`https://line.me/R/msg/text/?${encodeURIComponent(text)}`, '_blank');
 }
 
 function copyLineTextToClipboard() {
   if (!activePracticeForExport) return;
-  const text = buildFormattedShareText(activePracticeForExport);
-  navigator.clipboard.writeText(text).then(() => {
-    alert('LINE用練習案内テキストをクリップボードにコピーしました！\nLINEのトーク画面に貼り付けて共有できます。');
-  });
+  const p = activePracticeForExport;
+  let text = `🎵【吹奏楽 練習連絡】\n📌 ${p.title}\n📅 ${p.date}\n📍 場所: ${p.locationName || '未定'}\n👨‍🏫 指揮: ${p.conductors || '未定'}\n📱 Webアプリ:\n${window.location.href}`;
+  navigator.clipboard.writeText(text).then(() => alert('テキストをコピーしました'));
 }
 
 function downloadIcsFile() {
   if (!activePracticeForExport) return;
   const p = activePracticeForExport;
-
-  const dateClean = p.date.replace(/-/g, '');
-  const startDt = `${dateClean}T090000Z`;
-  const endDt = `${dateClean}T170000Z`;
-
-  const icsContent = [
-    'BEGIN:VCALENDAR',
-    'VERSION:2.0',
-    'PRODID:-//Brass Band Calendar//JA',
-    'BEGIN:VEVENT',
-    `UID:practice-${p.id}@brassband`,
-    `DTSTAMP:${startDt}`,
-    `DTSTART:${startDt}`,
-    `DTEND:${endDt}`,
-    `SUMMARY:[吹奏楽] ${p.title}`,
-    `LOCATION:${p.locationName || ''}`,
-    `DESCRIPTION:${p.category} \\n ${p.conductors || ''}`,
-    'END:VEVENT',
-    'END:VCALENDAR'
-  ].join('\r\n');
-
-  const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+  const dClean = p.date.replace(/-/g, '');
+  const content = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'BEGIN:VEVENT', `SUMMARY:[吹奏楽] ${p.title}`, `DTSTART:${dClean}T090000Z`, `DTEND:${dClean}T170000Z`, 'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
+  const blob = new Blob([content], { type: 'text/calendar;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -1500,25 +1333,14 @@ function downloadIcsFile() {
   document.body.removeChild(a);
 }
 
-function shareTimeTreeFormat() {
-  copyLineTextToClipboard();
-  alert('TimeTree共有用にテキストをコピーしました！\nTimeTreeアプリの予定作成画面またはグループチャットに貼り付けてご活用ください。');
-}
+function shareTimeTreeFormat() { copyLineTextToClipboard(); }
 
-/* ==========================================================================
-   Data Export / Import / Reset
-   ========================================================================== */
 function exportDataAsJson() {
-  const exportPayload = {
-    practices,
-    repertoire
-  };
-  const jsonStr = JSON.stringify(exportPayload, null, 2);
-  const blob = new Blob([jsonStr], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify({ practices, repertoire }, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `brass_band_calendar_backup_${formatDate(new Date())}.json`;
+  a.download = `brass_band_backup_${formatDate(new Date())}.json`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -1527,30 +1349,25 @@ function exportDataAsJson() {
 function importDataFromJson(e) {
   const file = e.target.files[0];
   if (!file) return;
-
   const reader = new FileReader();
   reader.onload = (evt) => {
     try {
       const imported = JSON.parse(evt.target.result);
-      if (Array.isArray(imported)) {
-        practices = imported;
-      } else if (imported.practices && imported.repertoire) {
+      if (imported.practices && imported.repertoire) {
         practices = imported.practices;
         repertoire = imported.repertoire;
+        saveToStorage();
+        closeModal('backupModal');
+        render();
+        alert('インポートを完了しました');
       }
-      saveToStorage();
-      closeModal('backupModal');
-      render();
-      alert('練習データを正常にインポートしました！');
-    } catch (err) {
-      alert('JSONファイルの解析に失敗しました。');
-    }
+    } catch (err) {}
   };
   reader.readAsText(file);
 }
 
 function resetToSampleData() {
-  if (confirm('すべての登録データをリセットし、初期データ（全12曲の演奏プログラムおよび8月・9月の練習日程）に戻しますか？')) {
+  if (confirm('初期データにリセットしますか？')) {
     practices = JSON.parse(JSON.stringify(INITIAL_PRACTICE_DATA));
     repertoire = JSON.parse(JSON.stringify(MASTER_REPERTOIRE));
     saveToStorage();
@@ -1559,46 +1376,26 @@ function resetToSampleData() {
   }
 }
 
-/* ==========================================================================
-   Helper Functions
-   ========================================================================== */
 function formatDate(d) {
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 function getWeekStartDate(d) {
   const date = new Date(d);
-  const day = date.getDay();
-  const diff = date.getDate() - day;
-  return new Date(date.setDate(diff));
-}
-
-function formatGoogleCalendarDates(dateStr) {
-  const clean = dateStr.replace(/-/g, '');
-  return `${clean}T090000Z/${clean}T170000Z`;
+  return new Date(date.setDate(date.getDate() - date.getDay()));
 }
 
 function extractYoutubeId(url) {
   if (!url) return null;
-  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-  const match = url.match(regExp);
+  const match = url.match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/);
   return (match && match[2] && match[2].length === 11) ? match[2] : null;
 }
 
 function getGoogleMapsUrl(name, address) {
-  const query = encodeURIComponent(`${name || ''} ${address || ''}`.trim());
-  return `https://www.google.com/maps/search/?api=1&query=${query}`;
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((name || '') + ' ' + (address || ''))}`;
 }
 
 function escapeHtml(str) {
   if (!str) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 }

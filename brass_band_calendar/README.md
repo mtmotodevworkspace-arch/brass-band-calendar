@@ -1,7 +1,7 @@
-# 🎺 吹奏楽専用練習カレンダー Web アプリ (Production Release)
+# 🎺 吹奏楽専用練習カレンダー Web アプリ (Standalone Project)
 
 吹奏楽団・ブラスバンドのための練習日程・練習時間割・演奏曲目ライブラリ管理 Web アプリケーションです。
-完全無料でリリース・運用が可能です。
+独立した専用プロジェクトとして完全無料で公開・運用が可能です。
 
 ## 🌟 主な機能
 
@@ -13,15 +13,20 @@
 - **📍 GoogleMap 連携**: 練習場所をタップで Google Maps ルート検索
 - **🪟 動きのある最前面表示**: クリックしたモーダル・操作画面が常に最前面に配置されるスマートレイヤー管理
 
-## 🚀 完全無料ビルド & デプロイ方法 (完全費用0円)
+## 🚀 独立プロジェクトとしての無料デプロイ手順 (完全費用0円)
 
-### 方法 1: GitHub Pages (推奨・完全無料)
-1. このリポジトリを GitHub へプッシュします。
-2. GitHub リポジトリの **Settings > Pages** へ移動します。
-3. Source を `main` ブランチ、Directory を `/brass_band_calendar` に設定して保存します。
-4. 数分で無料の公開URL（`https://mtmoto2001.github.io/brass_band_calendar`）が発行され、LINEで直接共有できます。
+### 1. GitHub 新規リポジトリへのプッシュ
+1. GitHub にて新しい空のリポジトリ（例: `brass-band-calendar`）を作成します。
+2. ターミナルで以下のコマンドを実行し、新規リポジトリへリモート登録＆プッシュします：
+   ```bash
+   git remote add origin https://github.com/mtmoto2001/brass-band-calendar.git
+   git push -u origin main
+   ```
 
-### 方法 2: Vercel / Netlify / Cloudflare Pages (推奨・1分で公開)
-1. [Vercel](https://vercel.com) または [Netlify](https://netlify.com) に無料登録します。
-2. `brass_band_calendar` フォルダをドラッグ＆ドロップまたは GitHub 連携します。
-3. SSL暗号化された無料URL（例: `https://brass-band-calendar.vercel.app`）が生成され、スマホ・PC両方から即座にアクセス可能です。
+### 2. GitHub Pages での自動無料公開
+1. リポジトリの **Settings > Pages > Source** を **「GitHub Actions」** に選択します。
+2. 自動デプロイが起動し、専用の無料公開URL（`https://mtmoto2001.github.io/brass-band-calendar/`）が発行されます。
+
+### 3. Vercel での無料公開 (代替方法)
+1. [Vercel](https://vercel.com) にログインし、「Add New Project」から `brass-band-calendar` リポジトリを選択します。
+2. 無料ドメイン（例: `https://brass-band-calendar.vercel.app`）が即座に発行されます。
