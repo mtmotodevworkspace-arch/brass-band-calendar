@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>吹奏楽専用カレンダー | Liquid Glass Rehearsal Hub</title>
+  <meta name="description" content="吹奏楽団・ブラスバンドのための練習カレンダー＆時間割管理Webアプリ。Googleカレンダー・iPhone・TimeTree・LINE連携対応。">
+  
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Ambient Liquid Glass Glow Orbs -->
+  <div class="ambient-glow glow-1"></div>
+  <div class="ambient-glow glow-2"></div>
+  <div class="ambient-glow glow-3"></div>
+
+  <div id="app">
+    <!-- Header -->
+    <header class="app-header glass-panel glass-panel-gold">
+      <div class="brand-container">
+        <div class="brand-icon">🎼</div>
+        <div class="brand-title">
+          <h1>吹奏楽練習カレンダー</h1>
+          <p>Wind Orchestra Rehearsal & Repertoire Hub</p>
+        </div>
+      </div>
+      
+      <div class="header-actions">
+        <button id="btnBulkExport" class="btn-glass" title="期間指定で一括連携">
+          <span>📅 期間一括連携</span>
+        </button>
+        <button id="btnRepertoireLibrary" class="btn-glass" title="演奏曲目ライブラリ">
+          <span>🎼 曲目ライブラリ</span>
+        </button>
+        <button id="btnBackup" class="btn-glass" title="データバックアップ・復元">
+          <span>💾 データ管理</span>
+        </button>
+        <button id="btnAddPractice" class="btn-glass btn-gold">
+          <span>➕ 練習登録</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Controls Bar: Date Navigation, View Tabs, Filter -->
+    <div class="controls-bar glass-panel">
+      <!-- Date Navigator -->
+      <div class="date-navigator">
+        <button id="btnPrev" class="btn-glass btn-icon-only" title="前へ">◀</button>
+        <button id="btnToday" class="btn-glass btn-sm">今日</button>
+        <button id="btnNext" class="btn-glass btn-icon-only" title="次へ">▶</button>
+        <div id="currentPeriodText" class="current-period-title">2026年 8月</div>
+      </div>
+
+      <!-- View Tabs Switcher -->
+      <div class="view-tabs">
+        <button class="tab-btn active" data-view="month">月表示</button>
+        <button class="tab-btn" data-view="week">週表示</button>
+        <button class="tab-btn" data-view="day">日表示</button>
+        <button class="tab-btn" data-view="timetable">時間割表示</button>
+        <button class="tab-btn" data-view="repertoire" style="background: rgba(229,193,88,0.15); color: var(--color-brass-light);">🎼 曲目ライブラリ</button>
+      </div>
+
+      <!-- Category Filters -->
+      <div class="category-filter-bar">
+        <div class="filter-chip active" data-cat="all">すべて</div>
+        <div class="filter-chip" data-cat="合奏">合奏</div>
+        <div class="filter-chip" data-cat="パート練習">パート</div>
+        <div class="filter-chip" data-cat="個人練習">個人</div>
+        <div class="filter-chip" data-cat="本番">本番</div>
+        <button id="btnControlsBulkExport" class="btn-glass btn-sm" style="margin-left: 8px; color: var(--color-brass-light); border-color: var(--glass-border-gold);">
+          📅 期間一括連携
+        </button>
+      </div>
+    </div>
+
+    <!-- Main Dynamic View Container -->
+    <main class="view-container">
+      <!-- Month View Grid -->
+      <div id="monthView" class="view-panel">
+        <div class="calendar-month-grid">
+          <div class="weekday-header sun">日</div>
+          <div class="weekday-header">月</div>
+          <div class="weekday-header">火</div>
+          <div class="weekday-header">水</div>
+          <div class="weekday-header">木</div>
+          <div class="weekday-header">金</div>
+          <div class="weekday-header sat">土</div>
+          <!-- Days populated dynamically by app.js -->
+        </div>
+      </div>
+
+      <!-- Week View Grid -->
+      <div id="weekView" class="view-panel" style="display: none;">
+        <div class="week-view-grid">
+          <!-- Week columns populated dynamically -->
+        </div>
+      </div>
+
+      <!-- Day View Container -->
+      <div id="dayView" class="view-panel" style="display: none;">
+        <div id="dayViewContent"></div>
+      </div>
+
+      <!-- Timetable View Container -->
+      <div id="timetableContainer" class="view-panel" style="display: none;">
+        <div id="timetableContent" class="timetable-view-container"></div>
+      </div>
+
+      <!-- Main Repertoire Panel View Container -->
+      <div id="repertoireViewPanel" class="view-panel" style="display: none;">
+        <div class="glass-panel" style="padding: 20px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+          <div>
+            <h2 style="font-size: 1.3rem; font-weight: 700; color: var(--color-brass-light); margin-bottom: 4px;">
+              🎼 演奏曲目ライブラリ
+            </h2>
+            <p style="font-size: 0.88rem; color: var(--text-secondary);">
+              演奏プログラムの一覧です。指揮者の編集、YouTube動画URLの新規追加・削除・編集が可能です。
+            </p>
+          </div>
+          <button id="btnAddNewSong" class="btn-glass btn-gold">
+            ➕ 新しい曲目を追加
+          </button>
+        </div>
+        <div id="repertoireMainContent" style="display: flex; flex-direction: column; gap: 16px;"></div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal 0: Bulk Date Range External Calendar & LINE Sync Modal -->
+  <div id="bulkExportModal" class="modal-backdrop">
+    <div class="modal-content glass-panel glass-panel-gold" style="max-width: 780px;">
+      <div class="modal-header">
+        <h3>📅 期間指定 一括他カレンダー連携 & LINE共有</h3>
+        <button class="close-modal-btn" data-close="bulkExportModal">&times;</button>
+      </div>
+      
+      <!-- Date Range Selector Controls -->
+      <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid var(--glass-border); padding: 18px; border-radius: var(--radius-md); margin-bottom: 20px;">
+        <label style="font-size: 0.9rem; font-weight: 700; color: var(--color-brass-light); display: block; margin-bottom: 10px;">
+          🗓️ 連携・出力する期間を指定
+        </label>
+        
+        <div style="display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap;">
+          <button type="button" id="btnPresetThisMonth" class="btn-glass btn-sm">今月全件</button>
+          <button type="button" id="btnPresetNextMonth" class="btn-glass btn-sm">来月全件</button>
+          <button type="button" id="btnPresetAugSep" class="btn-glass btn-sm" style="color: var(--color-brass-light);">8月〜9月全件</button>
+          <button type="button" id="btnPresetAll" class="btn-glass btn-sm">全期間</button>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group" style="margin-bottom: 0;">
+            <label style="font-size: 0.8rem;">開始日</label>
+            <input type="date" id="bulkStartDate" class="form-control">
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label style="font-size: 0.8rem;">終了日</label>
+            <input type="date" id="bulkEndDate" class="form-control">
+          </div>
+        </div>
+
+        <div style="margin-top: 12px; font-size: 0.85rem; color: var(--text-secondary); display: flex; align-items: center; justify-content: space-between;">
+          <span>対象の練習件数:</span>
+          <span id="bulkEventCountBadge" style="background: var(--color-gold-gradient); color: #000; font-weight: 700; padding: 2px 10px; border-radius: 12px;">0 件</span>
+        </div>
+      </div>
+
+      <!-- Action 1: LINE Bulk Sharing -->
+      <div style="background: rgba(6, 199, 85, 0.15); border: 1px solid rgba(6, 199, 85, 0.4); padding: 16px; border-radius: var(--radius-md); margin-bottom: 20px;">
+        <h4 style="color: #2ee66b; font-size: 1rem; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+          💬 指定期間の練習日程を LINE で一括共有
+        </h4>
+        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 12px;">
+          指定した期間内の全練習日時・場所・GoogleMapリンクを1通のメッセージにまとめて送信・コピーできます。
+        </p>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+          <button id="btnBulkLineShare" class="btn-glass" style="background: #06C755; color: #fff; border: none; font-weight: 700;">
+            📲 期間内の練習を LINE で一括送信
+          </button>
+          <button id="btnBulkLineCopy" class="btn-glass">
+            📋 一括練習テキストをコピー
+          </button>
+        </div>
+      </div>
+
+      <!-- Action 2: Calendar Bulk Export Options -->
+      <h4 style="font-size: 0.95rem; color: var(--color-brass-light); margin-bottom: 10px;">
+        外部カレンダーへ期間一括登録 (.ics / iPhone / Outlook / Google)
+      </h4>
+      <div class="export-options-grid">
+        <button id="btnBulkDownloadIcs" class="export-card-btn" style="background: rgba(229,193,88,0.15); border-color: var(--color-brass);">
+          <span style="font-size: 2rem;">🍎</span>
+          <span style="font-weight: 700; color: var(--color-brass-light);">iPhone (.ics 一括追加)</span>
+          <span style="font-size: 0.72rem; color: var(--text-muted);">1タップで全日程をiPhoneカレンダーに一括取り込み</span>
+        </button>
+        
+        <a id="btnBulkGoogleCalendar" href="https://calendar.google.com/calendar/r/settings/export" target="_blank" class="export-card-btn">
+          <span style="font-size: 2rem;">📅</span>
+          <span>Googleカレンダー (一括インポート)</span>
+          <span style="font-size: 0.72rem; color: var(--text-muted);">.ics ファイルをGoogleカレンダーにインポート</span>
+        </a>
+
+        <button id="btnBulkTimeTreeShare" class="export-card-btn">
+          <span style="font-size: 2rem;">🌲</span>
+          <span>TimeTree (一括共有)</span>
+          <span style="font-size: 0.72rem; color: var(--text-muted);">一括テキストをコピーしてグループ共有</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 1: Master Repertoire Library Modal -->
+  <div id="repertoireModal" class="modal-backdrop">
+    <div class="modal-content glass-panel glass-panel-gold" style="max-width: 840px;">
+      <div class="modal-header">
+        <h3>🎼 演奏曲目ライブラリ</h3>
+        <button class="close-modal-btn" data-close="repertoireModal">&times;</button>
+      </div>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
+        <p style="font-size: 0.85rem; color: var(--text-secondary);">
+          指揮者・練習ポイント・YouTube参考音源の変更・追加が可能です。
+        </p>
+        <button id="btnModalAddNewSong" class="btn-glass btn-sm btn-gold">
+          ➕ 新しい曲目を追加
+        </button>
+      </div>
+      <div id="repertoireLibraryList" style="display: flex; flex-direction: column; gap: 14px;">
+        <!-- Dynamically rendered by app.js -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 1.5: Edit / Add Song & YouTube Links Modal -->
+  <div id="editSongModal" class="modal-backdrop">
+    <div class="modal-content glass-panel glass-panel-gold" style="max-width: 700px;">
+      <div class="modal-header">
+        <h3 id="editSongModalTitle">✏️ 演奏曲目 & YouTube動画の編集</h3>
+        <button class="close-modal-btn" data-close="editSongModal">&times;</button>
+      </div>
+      <form id="editSongForm">
+        <input type="hidden" id="editSongId">
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label>構成・プログラム区分 *</label>
+            <select id="editSongSection" class="form-control" required>
+              <option value="第1部">第1部</option>
+              <option value="第2部">第2部</option>
+              <option value="Enc">アンコール (Enc)</option>
+              <option value="その他">その他</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>曲順・No *</label>
+            <input type="text" id="editSongNo" class="form-control" placeholder="例: OP, 1, 2" required>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>曲名 *</label>
+            <input type="text" id="editSongTitle" class="form-control" placeholder="例: マツケンサンバⅡ" required>
+          </div>
+          <div class="form-group">
+            <label>作曲者・編曲者</label>
+            <input type="text" id="editSongComposer" class="form-control" placeholder="例: 宮川彬良 / Arr. 真島俊夫">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>👨‍🏫 指揮・指導者氏名 (自由に変更・削除・新規登録可能)</label>
+          <input type="text" id="editSongConductor" class="form-control" placeholder="例: 公文 先生 / 下川 先生 / 未定">
+        </div>
+
+        <div class="form-group">
+          <label>練習のポイント（長文・改行対応）</label>
+          <textarea id="editSongPoints" class="form-control" placeholder="アタック、小節番号、テンポ、アーティキュレーションなど..."></textarea>
+        </div>
+
+        <!-- Multiple YouTube Videos Section -->
+        <div class="form-group">
+          <label class="section-title">
+            <span>🎬 YouTube動画リンク (追加・変更・削除可能)</span>
+            <button type="button" id="btnAddSongVideoRow" class="btn-glass btn-sm" style="margin-left: auto;">
+              ➕ 動画URLを追加
+            </button>
+          </label>
+          <div id="songVideosInputsContainer">
+            <!-- Dynamic video rows inserted here -->
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 24px;">
+          <button type="button" id="btnDeleteSong" class="btn-glass" style="color: #f43f5e; border-color: rgba(244,63,94,0.4); display: none;">
+            🗑️ この曲目を削除
+          </button>
+          <div style="display: flex; gap: 10px; margin-left: auto;">
+            <button type="button" class="btn-glass" data-close="editSongModal">キャンセル</button>
+            <button type="submit" class="btn-glass btn-gold">✔ 保存して保存保持</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal 2: Add / Edit Practice Entry -->
+  <div id="practiceModal" class="modal-backdrop">
+    <div class="modal-content glass-panel glass-panel-gold">
+      <div class="modal-header">
+        <h3 id="modalTitle">📅 練習スケジュールの登録</h3>
+        <button class="close-modal-btn" data-close="practiceModal">&times;</button>
+      </div>
+      <form id="practiceForm">
+        <input type="hidden" id="practiceId">
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="inputDate">📅 練習日 *</label>
+            <input type="date" id="inputDate" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label for="inputCategory">🏷️ 練習区分 *</label>
+            <select id="inputCategory" class="form-control" required>
+              <option value="合奏">合奏 (全体練習)</option>
+              <option value="パート練習">パート練習 (セクション)</option>
+              <option value="個人練習">個人練習</option>
+              <option value="本番">本番・演奏会</option>
+              <option value="その他">その他・お休み</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="inputTitle">✏️ 練習タイトル *</label>
+          <input type="text" id="inputTitle" class="form-control" placeholder="例: 通常練習 / 長時間集中練習 (天然色劇場)" required>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="inputLocationName">📍 練習場所・部屋名</label>
+            <input type="text" id="inputLocationName" class="form-control" placeholder="例: 日章福祉交流センター 会議室① / 天然色劇場">
+          </div>
+          <div class="form-group">
+            <label for="inputLocationAddress">🗺️ 住所 (GoogleMap用)</label>
+            <input type="text" id="inputLocationAddress" class="form-control" placeholder="例: 高知県南国市日章 / 香南市吉川町">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="inputConductors">👨‍🏫 指揮・指導者</label>
+          <input type="text" id="inputConductors" class="form-control" placeholder="例: 公文 先生 / 下川 先生">
+        </div>
+
+        <!-- Practice Pieces Section -->
+        <div class="form-group">
+          <label class="section-title">
+            <span>🎼 当日の練習曲 (ライブラリから選択または個別入力)</span>
+            <button type="button" id="btnAddPieceRow" class="btn-glass btn-sm" style="margin-left: auto;">
+              ➕ 曲を追加
+            </button>
+          </label>
+          <div id="piecesInputsContainer">
+            <!-- Dynamic piece rows inserted here -->
+          </div>
+        </div>
+
+        <!-- Timetable Hourly Breakdown Dynamic Section -->
+        <div class="form-group">
+          <label class="section-title">
+            <span>⏱️ 当日の練習時間割 (複数曲の割り当て可能)</span>
+            <button type="button" id="btnAddTimetableRow" class="btn-glass btn-sm" style="margin-left: auto;">
+              ➕ 時間枠を追加
+            </button>
+          </label>
+          <div id="timetableInputsContainer">
+            <!-- Dynamic time slot rows inserted here -->
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="inputGeneralNotes">📝 連絡事項・備考</label>
+          <textarea id="inputGeneralNotes" class="form-control" placeholder="例: 18:00〜21:00 / よさこい被り注意 / 譜面台持参"></textarea>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px;">
+          <button type="button" class="btn-glass" data-close="practiceModal">キャンセル</button>
+          <button type="submit" class="btn-glass btn-gold">✔ 保存する</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal 3: Detail & YouTube Player View -->
+  <div id="detailModal" class="modal-backdrop">
+    <div class="modal-content glass-panel glass-panel-gold" style="max-width: 760px;">
+      <div class="modal-header">
+        <h3>ℹ️ 練習詳細 & 参考音源 (YouTube)</h3>
+        <button class="close-modal-btn" data-close="detailModal">&times;</button>
+      </div>
+      <div id="detailModalBody">
+        <!-- Rendered detail content with YouTube multi-video player -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 4: Calendar Export & LINE Sharing -->
+  <div id="exportModal" class="modal-backdrop">
+    <div class="modal-content glass-panel glass-panel-gold">
+      <div class="modal-header">
+        <h3>📲 カレンダー連携 & LINE共有</h3>
+        <button class="close-modal-btn" data-close="exportModal">&times;</button>
+      </div>
+      <div id="exportModalBody">
+        <p style="color: var(--text-secondary); margin-bottom: 16px;">
+          選択した練習予定を、お使いの外部カレンダーに追加したり、LINEで団員メンバーへ一括共有できます。
+        </p>
+
+        <!-- LINE Sharing Focus Section -->
+        <div style="background: rgba(6, 199, 85, 0.15); border: 1px solid rgba(6, 199, 85, 0.4); padding: 16px; border-radius: var(--radius-md); margin-bottom: 20px;">
+          <h4 style="color: #2ee66b; font-size: 1rem; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+            💬 LINEで共有する
+          </h4>
+          <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 12px;">
+            タップするとLINEアプリが起動し、日時・時間割・練習場所・GoogleMapリンクを簡単に送信できます。
+          </p>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button id="btnLineShare" class="btn-glass" style="background: #06C755; color: #fff; border: none; font-weight: 700;">
+              📲 LINEアプリで送信
+            </button>
+            <button id="btnCopyLineText" class="btn-glass">
+              📋 LINE用テキストをコピー
+            </button>
+          </div>
+        </div>
+
+        <!-- External Calendars Section -->
+        <h4 style="font-size: 0.95rem; color: var(--color-brass-light); margin-bottom: 10px;">
+          他カレンダーに追加・連携
+        </h4>
+        <div class="export-options-grid">
+          <a id="linkGoogleCalendar" href="#" target="_blank" class="export-card-btn">
+            <span style="font-size: 1.8rem;">📅</span>
+            <span>Googleカレンダー</span>
+          </a>
+          <a id="linkOutlookCalendar" href="#" target="_blank" class="export-card-btn">
+            <span style="font-size: 1.8rem;">✉️</span>
+            <span>Outlook</span>
+          </a>
+          <button id="btnDownloadIcs" class="export-card-btn">
+            <span style="font-size: 1.8rem;">🍎</span>
+            <span>iPhone (.ics)</span>
+          </button>
+          <button id="btnTimeTreeShare" class="export-card-btn">
+            <span style="font-size: 1.8rem;">🌲</span>
+            <span>TimeTree</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 5: Backup & Data Management -->
+  <div id="backupModal" class="modal-backdrop">
+    <div class="modal-content glass-panel">
+      <div class="modal-header">
+        <h3>💾 データバックアップ・同期</h3>
+        <button class="close-modal-btn" data-close="backupModal">&times;</button>
+      </div>
+      <div>
+        <p style="color: var(--text-secondary); margin-bottom: 16px;">
+          すべての練習予定データをファイル（.json）として保存したり、他端末や団員から受け取ったデータをインポートできます。
+        </p>
+        <div style="display: flex; flex-direction: column; gap: 14px;">
+          <button id="btnExportJson" class="btn-glass btn-gold">
+            📤 練習データをファイルに書き出す (JSON)
+          </button>
+          <div style="position: relative;">
+            <input type="file" id="importJsonFile" accept=".json" style="display: none;">
+            <button id="btnImportJson" class="btn-glass" style="width: 100%;">
+              📥 ファイルからデータを読み込む (JSON)
+            </button>
+          </div>
+          <button id="btnResetData" class="btn-glass" style="color: #f43f5e; border-color: rgba(244, 63, 94, 0.3);">
+            🔄 初期データ（全12曲＆練習日程）にリセット
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main JavaScript App Loader -->
+  <script type="module" src="app.js"></script>
+</body>
+</html>
