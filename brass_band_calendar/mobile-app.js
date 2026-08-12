@@ -1,13 +1,13 @@
 /**
  * 吹奏楽専用カレンダー Smartphone App Main Logic (mobile-app.js)
- * View-Only Mode (閲覧専用・デフォルト) & Admin Mode (管理者用) + Hard Reset for "先生" + Direct YouTube App Launcher
+ * View-Only Mode (閲覧専用・デフォルト) & Admin Mode (管理者用) + Hard Reset for "先生" + Direct YouTube Launch
  */
 
 import { INITIAL_PRACTICE_DATA, MASTER_REPERTOIRE } from './sample-data.js';
 
 // Storage Keys
-const PERMANENT_STORAGE_KEY_PRACTICES = 'brass_band_calendar_practices_v9';
-const PERMANENT_STORAGE_KEY_REPERTOIRE = 'brass_band_calendar_repertoire_v9';
+const PERMANENT_STORAGE_KEY_PRACTICES = 'brass_band_calendar_practices_v12';
+const PERMANENT_STORAGE_KEY_REPERTOIRE = 'brass_band_calendar_repertoire_v12';
 
 // Global State
 let practices = [];
@@ -399,7 +399,7 @@ function renderMobileRepertoireView() {
     const cleanCond = (song.conductor || '未定').replace(/\s*先生/g, '').trim();
     const videoBtnsHtml = (song.videos || []).map((v, idx) => `
       <a href="${escapeHtml(v.url)}" target="_blank" rel="noopener noreferrer" class="m-btn-yt-highlight" style="display: inline-flex; align-items: center; gap: 6px; text-decoration: none; margin-right: 6px; margin-top: 6px;">
-        🎬 ${escapeHtml(v.title || `演奏動画 ${idx+1}`)} <span style="font-size: 0.72rem; opacity: 0.8;">アプリ起動 ↗</span>
+        🎬 ${escapeHtml(v.title || `演奏動画 ${idx+1}`)} <span style="font-size: 0.72rem; opacity: 0.8;">YouTubeアプリ起動 ↗</span>
       </a>
     `).join('');
 
@@ -447,7 +447,7 @@ function renderMobilePracticeCardHtml(practice, showDate = false) {
 
     const videoBtnsHtml = videos.map((v, idx) => `
       <a href="${escapeHtml(v.url)}" target="_blank" rel="noopener noreferrer" class="m-btn-yt-highlight" style="display: inline-flex; align-items: center; gap: 6px; text-decoration: none; margin-right: 6px; margin-top: 6px;">
-        🎬 ${escapeHtml(v.title || `演奏動画 ${idx+1}`)} <span style="font-size: 0.72rem; opacity: 0.8;">アプリ起動 ↗</span>
+        🎬 ${escapeHtml(v.title || `演奏動画 ${idx+1}`)} <span style="font-size: 0.72rem; opacity: 0.8;">YouTubeアプリ起動 ↗</span>
       </a>
     `).join('');
 
@@ -475,7 +475,7 @@ function renderMobilePracticeCardHtml(practice, showDate = false) {
         <div style="margin-top: 6px; background: rgba(229,193,88,0.1); border: 1px solid var(--glass-border-gold); padding: 6px 8px; border-radius: 6px;">
           <div style="font-size:0.82rem; font-weight:800; color:var(--color-brass-light);">🎼 ${escapeHtml(song.title)}</div>
           <a href="${escapeHtml(ytUrl)}" target="_blank" rel="noopener noreferrer" class="m-btn-yt-highlight" style="display: inline-flex; align-items: center; gap: 6px; text-decoration: none; margin-top:4px; font-size: 0.78rem; padding: 6px 12px;">
-            🎬 YouTubeアプリで再生 ↗
+            🎬 YouTubeアプリ起動 ↗
           </a>
         </div>
       `;
