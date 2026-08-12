@@ -1,6 +1,6 @@
 /**
  * 吹奏楽専用カレンダー Smartphone App Main Logic (mobile-app.js)
- * View-Only Mode (閲覧専用・デフォルト) & Admin Mode (管理者用) + Hard Reset for "先生"
+ * View-Only Mode (閲覧専用・デフォルト) & Admin Mode (管理者用) + Hard Reset for "先生" + Direct YouTube App Launcher
  */
 
 import { INITIAL_PRACTICE_DATA, MASTER_REPERTOIRE } from './sample-data.js';
@@ -398,9 +398,9 @@ function renderMobileRepertoireView() {
   container.innerHTML = repertoire.map(song => {
     const cleanCond = (song.conductor || '未定').replace(/\s*先生/g, '').trim();
     const videoBtnsHtml = (song.videos || []).map((v, idx) => `
-      <button class="m-btn-yt-highlight btn-play-rep-video" data-songid="${song.id}" data-vididx="${idx}">
-        🎬 ${escapeHtml(v.title || `演奏動画 ${idx+1}`)}
-      </button>
+      <a href="${escapeHtml(v.url)}" target="_blank" rel="noopener noreferrer" class="m-btn-yt-highlight" style="display: inline-flex; align-items: center; gap: 6px; text-decoration: none; margin-right: 6px; margin-top: 6px;">
+        🎬 ${escapeHtml(v.title || `演奏動画 ${idx+1}`)} <span style="font-size: 0.72rem; opacity: 0.8;">アプリ起動 ↗</span>
+      </a>
     `).join('');
 
     return `
@@ -424,21 +424,10 @@ function renderMobileRepertoireView() {
           </div>
         ` : ''}
 
-        ${videoBtnsHtml ? `<div style="margin-top: 8px;">${videoBtnsHtml}</div>` : ''}
+        ${videoBtnsHtml ? `<div style="margin-top: 8px; display: flex; flex-wrap: wrap;">${videoBtnsHtml}</div>` : ''}
       </div>
     `;
   }).join('');
-
-  container.querySelectorAll('.btn-play-rep-video').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const songId = e.currentTarget.dataset.songid;
-      const vidIdx = parseInt(e.currentTarget.dataset.vididx, 10);
-      const song = repertoire.find(s => s.id === songId);
-      if (song && song.videos && song.videos[vidIdx]) {
-        openYoutubeMultiVideoModal(song.title, song.videos, vidIdx);
-      }
-    });
-  });
 
   if (isAdminMode) {
     container.querySelectorAll('.btn-edit-song').forEach(btn => {
@@ -457,9 +446,9 @@ function renderMobilePracticeCardHtml(practice, showDate = false) {
     if (videos.length === 0) videos = [{ title: `${piece.title} 吹奏楽参考音源`, url: `https://www.youtube.com/results?search_query=${encodeURIComponent(piece.title + ' 吹奏楽')}` }];
 
     const videoBtnsHtml = videos.map((v, idx) => `
-      <button class="m-btn-yt-highlight btn-play-card-video" data-songtitle="${escapeHtml(piece.title)}" data-videos='${JSON.stringify(videos).replace(/'/g, "&apos;")}' data-idx="${idx}">
-        🎬 ${escapeHtml(v.title || `演奏動画 ${idx+1}`)}
-      </button>
+      <a href="${escapeHtml(v.url)}" target="_blank" rel="noopener noreferrer" class="m-btn-yt-highlight" style="display: inline-flex; align-items: center; gap: 6px; text-decoration: none; margin-right: 6px; margin-top: 6px;">
+        🎬 ${escapeHtml(v.title || `演奏動画 ${idx+1}`)} <span style="font-size: 0.72rem; opacity: 0.8;">アプリ起動 ↗</span>
+      </a>
     `).join('');
 
     const cleanCond = (piece.conductor || '').replace(/\s*先生/g, '');
@@ -471,7 +460,7 @@ function renderMobilePracticeCardHtml(practice, showDate = false) {
           ${cleanCond ? `<span style="font-size:0.75rem; background:rgba(229,193,88,0.15); color:var(--color-brass-light); padding:2px 6px; border-radius:4px;">👨‍🏫 ${escapeHtml(cleanCond)}</span>` : ''}
         </div>
         ${piece.points ? `<div style="font-size:0.78rem; color:var(--text-secondary); margin-top:4px;">${escapeHtml(piece.points)}</div>` : ''}
-        ${videoBtnsHtml}
+        <div style="display: flex; flex-wrap: wrap; margin-top: 6px;">${videoBtnsHtml}</div>
       </div>
     `;
   }).join('');
@@ -481,12 +470,13 @@ function renderMobilePracticeCardHtml(practice, showDate = false) {
 
     const slotSongsHtml = assignedSongs.map(song => {
       const vList = song.videos || [];
+      const ytUrl = vList.length > 0 ? vList[0].url : `https://www.youtube.com/results?search_query=${encodeURIComponent(song.title + ' 吹奏楽')}`;
       return `
         <div style="margin-top: 6px; background: rgba(229,193,88,0.1); border: 1px solid var(--glass-border-gold); padding: 6px 8px; border-radius: 6px;">
           <div style="font-size:0.82rem; font-weight:800; color:var(--color-brass-light);">🎼 ${escapeHtml(song.title)}</div>
-          <button class="m-btn-yt-highlight btn-play-slot-video" data-songtitle="${escapeHtml(song.title)}" data-videos='${JSON.stringify(vList).replace(/'/g, "&apos;")}' style="margin-top:4px;">
-            🎬 YouTube再生
-          </button>
+          <a href="${escapeHtml(ytUrl)}" target="_blank" rel="noopener noreferrer" class="m-btn-yt-highlight" style="display: inline-flex; align-items: center; gap: 6px; text-decoration: none; margin-top:4px; font-size: 0.78rem; padding: 6px 12px;">
+            🎬 YouTubeアプリで再生 ↗
+          </a>
         </div>
       `;
     }).join('');
@@ -535,15 +525,6 @@ function renderMobilePracticeCardHtml(practice, showDate = false) {
 }
 
 function attachMobilePracticeCardEvents(container) {
-  container.querySelectorAll('.btn-play-card-video, .btn-play-slot-video').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const songTitle = e.currentTarget.dataset.songtitle;
-      const videos = JSON.parse(e.currentTarget.dataset.videos);
-      const idx = parseInt(e.currentTarget.dataset.idx || 0, 10);
-      openYoutubeMultiVideoModal(songTitle, videos, idx);
-    });
-  });
-
   container.querySelectorAll('.btn-share-practice').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const p = practices.find(item => item.id === e.currentTarget.dataset.id);
@@ -767,42 +748,6 @@ function handleMobileEditSongSubmit(e) {
   renderMobile();
 }
 
-function openYoutubeMultiVideoModal(songTitle, videos = [], activeIdx = 0) {
-  const body = document.getElementById('mDetailModalBody');
-  if (!videos || videos.length === 0) {
-    videos = [{ title: `${songTitle} 吹奏楽名演`, url: `https://www.youtube.com/results?search_query=${encodeURIComponent(songTitle + ' 吹奏楽')}` }];
-  }
-
-  const activeVideo = videos[activeIdx] || videos[0];
-  const rawYtId = extractYoutubeId(activeVideo.url);
-
-  const embedUrl = rawYtId 
-    ? `https://www.youtube.com/embed/${rawYtId}?autoplay=1`
-    : `https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(songTitle + ' 吹奏楽')}`;
-
-  const directLinkUrl = rawYtId
-    ? `https://www.youtube.com/watch?v=${rawYtId}`
-    : `https://www.youtube.com/results?search_query=${encodeURIComponent(songTitle + ' 吹奏楽')}`;
-
-  body.innerHTML = `
-    <div style="margin-bottom: 10px;">
-      <h4 style="font-size: 1rem; font-weight: 800; color: var(--color-brass-light);">🎼 ${escapeHtml(songTitle)}</h4>
-    </div>
-
-    <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 10px;">
-      <iframe src="${embedUrl}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen style="position: absolute; top:0; left:0; width:100%; height:100%;"></iframe>
-    </div>
-
-    <div style="margin-top: 12px;">
-      <a href="${directLinkUrl}" target="_blank" class="m-btn-yt-highlight" style="text-decoration:none;">
-        🎬 YouTubeアプリで開く
-      </a>
-    </div>
-  `;
-
-  openMobileSheet('mDetailModal');
-}
-
 function openMobileBulkModal() {
   setBulkPreset('augSep');
   openMobileSheet('mBulkModal');
@@ -932,12 +877,6 @@ function resetToSampleData() {
 
 function formatDate(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-function extractYoutubeId(url) {
-  if (!url) return null;
-  const match = url.match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/);
-  return (match && match[2] && match[2].length === 11) ? match[2] : null;
 }
 
 function escapeHtml(str) {
