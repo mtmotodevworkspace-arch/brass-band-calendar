@@ -601,8 +601,9 @@ function renderMobilePracticeCardHtml(practice, showDate = false) {
       ` : ''}
 
       <div style="display:flex; gap:6px; margin-top:12px;">
-        <button class="m-btn-line btn-share-practice" data-id="${practice.id}" style="flex:1;">📲 LINE共有</button>
-        ${isAdminMode ? `<button class="m-btn-glass btn-edit-practice" data-id="${practice.id}">✏️ 編集</button>` : ''}
+        <button class="m-btn-line btn-share-practice" data-id="${practice.id}" style="flex:2;">📲 LINE共有</button>
+        <button class="m-btn-glass btn-edit-practice" data-id="${practice.id}" style="flex:1;">✏️ 編集</button>
+        <button class="m-btn-danger btn-delete-practice" data-id="${practice.id}" style="flex:1;">🗑️ 削除</button>
       </div>
     </div>
   `;
@@ -619,11 +620,48 @@ function attachMobilePracticeCardEvents(container) {
     });
   });
 
-  if (isAdminMode) {
-    container.querySelectorAll('.btn-edit-practice').forEach(btn => {
-      btn.addEventListener('click', (e) => openMobilePracticeModal(e.currentTarget.dataset.id));
+  container.querySelectorAll('.btn-edit-practice').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const id = e.currentTarget.dataset.id;
+      if (!isAdminMode) {
+        const code = prompt('編集権限が必要です。\n管理者パスコードを入力してください (初期パスコード: 1234):');
+        if (code === '1234' || code === 'admin') {
+          isAdminMode = true;
+          sessionStorage.setItem('brass_band_is_admin', 'true');
+          updateAdminModeUi();
+        } else {
+          if (code !== null) alert('パスコードが正しくありません。');
+          return;
+        }
+      }
+      closeMobileSheet('mDetailModal');
+      openMobilePracticeModal(id);
     });
-  }
+  });
+
+  container.querySelectorAll('.btn-delete-practice').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const id = e.currentTarget.dataset.id;
+      const p = practices.find(item => item.id === id);
+      if (!isAdminMode) {
+        const code = prompt('削除権限が必要です。\n管理者パスコードを入力してください (初期パスコード: 1234):');
+        if (code === '1234' || code === 'admin') {
+          isAdminMode = true;
+          sessionStorage.setItem('brass_band_is_admin', 'true');
+          updateAdminModeUi();
+        } else {
+          if (code !== null) alert('パスコードが正しくありません。');
+          return;
+        }
+      }
+      if (confirm(`練習予定「${p ? p.title : ''}」を削除してもよろしいですか？`)) {
+        practices = practices.filter(item => item.id !== id);
+        saveToStorage();
+        closeMobileSheet('mDetailModal');
+        renderMobile();
+      }
+    });
+  });
 }
 
 function openMobileSheet(id) { document.getElementById(id).classList.add('active'); }
