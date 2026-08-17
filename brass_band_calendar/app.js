@@ -871,14 +871,12 @@ function renderPracticeCardHtml(practice, showDateBadge = false) {
         <button class="btn-glass btn-sm btn-share-practice" data-id="${practice.id}">
           📲 LINE共有
         </button>
-        ${isAdminMode ? `
-          <button class="btn-glass btn-sm btn-edit-practice" data-id="${practice.id}" style="margin-left: auto; font-weight: 700;">
-            ✏️ 編集
-          </button>
-          <button class="btn-glass btn-sm btn-delete-practice" data-id="${practice.id}" style="color: #f43f5e; border-color: rgba(244,63,94,0.3);">
-            🗑️ 削除
-          </button>
-        ` : ''}
+        <button class="btn-glass btn-sm btn-edit-practice" data-id="${practice.id}" style="margin-left: auto; font-weight: 700;">
+          ✏️ 編集
+        </button>
+        <button class="btn-glass btn-sm btn-delete-practice" data-id="${practice.id}" style="color: #f43f5e; border-color: rgba(244,63,94,0.4);">
+          🗑️ 削除
+        </button>
       </div>
     </div>
   `;
@@ -889,22 +887,48 @@ function attachPracticeCardEvents(container) {
     btn.addEventListener('click', (e) => openExportModal(e.currentTarget.dataset.id));
   });
 
-  if (isAdminMode) {
-    container.querySelectorAll('.btn-edit-practice').forEach(btn => {
-      btn.addEventListener('click', (e) => openPracticeModal(e.currentTarget.dataset.id));
-    });
-
-    container.querySelectorAll('.btn-delete-practice').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const id = e.currentTarget.dataset.id;
-        if (confirm('この練習予定を削除しますか？')) {
-          practices = practices.filter(p => p.id !== id);
-          saveToStorage();
-          render();
+  container.querySelectorAll('.btn-edit-practice').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const id = e.currentTarget.dataset.id;
+      if (!isAdminMode) {
+        const code = prompt('編集権限が必要です。\n管理者パスコードを入力してください (初期パスコード: 1234):');
+        if (code === '1234' || code === 'admin') {
+          isAdminMode = true;
+          sessionStorage.setItem('brass_band_is_admin', 'true');
+          updateAdminModeUi();
+        } else {
+          if (code !== null) alert('パスコードが正しくありません。');
+          return;
         }
-      });
+      }
+      closeModal('detailModal');
+      openPracticeModal(id);
     });
-  }
+  });
+
+  container.querySelectorAll('.btn-delete-practice').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const id = e.currentTarget.dataset.id;
+      const p = practices.find(item => item.id === id);
+      if (!isAdminMode) {
+        const code = prompt('削除権限が必要です。\n管理者パスコードを入力してください (初期パスコード: 1234):');
+        if (code === '1234' || code === 'admin') {
+          isAdminMode = true;
+          sessionStorage.setItem('brass_band_is_admin', 'true');
+          updateAdminModeUi();
+        } else {
+          if (code !== null) alert('パスコードが正しくありません。');
+          return;
+        }
+      }
+      if (confirm(`練習予定「${p ? p.title : ''}」を削除してもよろしいですか？`)) {
+        practices = practices.filter(item => item.id !== id);
+        saveToStorage();
+        closeModal('detailModal');
+        render();
+      }
+    });
+  });
 }
 
 function openModal(modalId) {
