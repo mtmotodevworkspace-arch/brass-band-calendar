@@ -1,5 +1,6 @@
 /**
  * 吹奏楽練習カレンダー 演奏曲目ライブラリ & 8月・9月練習スケジュール (「先生」排除・公文 / 下川表記完全統一版)
+ * タイムスケジュール (時間軸明示型) 対応拡張データモデル
  */
 
 // 演奏曲目マスターライブラリ (全12曲)
@@ -157,7 +158,7 @@ export const MASTER_REPERTOIRE = [
   }
 ];
 
-// 初期練習スケジュール (8月・9月の通常練習 & 長時間練習)
+// 初期練習スケジュール (8月・9月の通常練習 & 長時間練習 - タイムスケジュール時間軸明示対応)
 export const INITIAL_PRACTICE_DATA = [
   {
     id: "p-20260802",
@@ -172,8 +173,28 @@ export const INITIAL_PRACTICE_DATA = [
       { title: "海の男たちの歌 (Songs of Sailor and Sea)", conductor: "公文" }
     ],
     timetable: [
-      { startTime: "18:00", endTime: "19:00", category: "個人練習", title: "音出し・ウォームアップ", details: "準備", pieceIds: ["rep-1"] },
-      { startTime: "19:00", endTime: "21:00", category: "合奏", title: "全体合奏", details: "第1部OP・第2部メイン返し", pieceIds: ["rep-1", "rep-10"] }
+      {
+        startTime: "18:00",
+        endTime: "19:00",
+        category: "個人練習",
+        title: "個人音出し・チューニング",
+        conductor: "各自",
+        pieceIds: ["rep-1"],
+        customPiece: "基礎練習・Long Tone",
+        youtubeUrl: "https://www.youtube.com/results?search_query=The+Young+Person%27s+Guide+to+the+Orchestra+Britten",
+        message: "18:00開場です。各自ウォームアップと音出しを済ませてください。"
+      },
+      {
+        startTime: "19:00",
+        endTime: "21:00",
+        category: "合奏",
+        title: "第1部OP & 第2部メイン返し合奏",
+        conductor: "公文",
+        pieceIds: ["rep-1", "rep-10"],
+        customPiece: "",
+        youtubeUrl: "",
+        message: "パーセル主題の金管・木管ハーモニーと海の男たちの歌のコラールを中心に合わせます。"
+      }
     ],
     generalNotes: "18:00〜21:00 日章福祉交流センター 会議室①"
   },
@@ -190,7 +211,28 @@ export const INITIAL_PRACTICE_DATA = [
       { title: "マツケンサンバⅡ", conductor: "公文" }
     ],
     timetable: [
-      { startTime: "18:00", endTime: "21:00", category: "合奏", title: "夜間ポップス合奏", details: "※よさこい祭りと日程重複のため移動注意", pieceIds: ["rep-2", "rep-8"] }
+      {
+        startTime: "18:00",
+        endTime: "19:00",
+        category: "パート練習",
+        title: "ポップスノリ・リフ集中パート分奏",
+        conductor: "公文",
+        pieceIds: ["rep-2", "rep-8"],
+        customPiece: "真島俊夫ラテンパーカッション打ち合わせ",
+        youtubeUrl: "https://www.youtube.com/results?search_query=%E3%83%9E%E3%83%84%E3%82%B1%E3%83%B3%E3%82%B5%E3%83%B3%E3%83%902+%E5%90%B9%E5%A5%8F%E6%A5%BD",
+        message: "※よさこい祭り開催中のため道路混雑が予想されます。時間に余裕をもってお越しください。"
+      },
+      {
+        startTime: "19:00",
+        endTime: "21:00",
+        category: "合奏",
+        title: "ポップスプログラム全体合奏",
+        conductor: "公文",
+        pieceIds: ["rep-2", "rep-8"],
+        customPiece: "",
+        youtubeUrl: "",
+        message: "かけ声とサンバリズムの一致を徹底します！"
+      }
     ],
     generalNotes: "よさこい祭り期間中のため、交通混雑にご注意ください。"
   },
@@ -207,8 +249,28 @@ export const INITIAL_PRACTICE_DATA = [
       { title: "海の男たちの歌 (Songs of Sailor and Sea)", conductor: "公文" }
     ],
     timetable: [
-      { startTime: "16:00", endTime: "18:00", category: "パート練習", title: "セクション練習", details: "木管・金管分奏", pieceIds: ["rep-1", "rep-10"] },
-      { startTime: "18:00", endTime: "21:00", category: "合奏", title: "全体合奏", details: "16:00開始ですのでご注意ください", pieceIds: ["rep-1", "rep-10"] }
+      {
+        startTime: "16:00",
+        endTime: "18:00",
+        category: "パート練習",
+        title: "木管・金管セクション分奏",
+        conductor: "公文",
+        pieceIds: ["rep-1", "rep-10"],
+        customPiece: "ブリテン・フーガリレーパート練習",
+        youtubeUrl: "",
+        message: "※16:00開始ですので、開始時間にお気をつけください。"
+      },
+      {
+        startTime: "18:00",
+        endTime: "21:00",
+        category: "合奏",
+        title: "全体合奏",
+        conductor: "公文",
+        pieceIds: ["rep-1", "rep-10"],
+        customPiece: "",
+        youtubeUrl: "",
+        message: ""
+      }
     ],
     generalNotes: "16:00開始（通常と開始時間が異なります）"
   },
@@ -237,7 +299,28 @@ export const INITIAL_PRACTICE_DATA = [
       { title: "ルパン三世のテーマ", conductor: "公文" }
     ],
     timetable: [
-      { startTime: "18:00", endTime: "21:00", category: "合奏", title: "夜間通常合奏", details: "第1部・第2部曲目の返し合奏", pieceIds: ["rep-3", "rep-9"] }
+      {
+        startTime: "18:00",
+        endTime: "19:30",
+        category: "合奏",
+        title: "ディズニーメドレー合奏",
+        conductor: "下川",
+        pieceIds: ["rep-3"],
+        customPiece: "",
+        youtubeUrl: "https://www.youtube.com/results?search_query=%E3%83%AA%E3%83%88%E3%83%AB%E3%83%9E%E3%83%BC%E3%83%A1%E3%82%A4%E3%83%89%E3%83%A1%E3%83%89%E3%83%AC%E3%83%BC+%E5%90%B9%E5%A5%8F%E6%A5%BD",
+        message: "星出尚志アレンジのディズニー世界観を歌い込みます。"
+      },
+      {
+        startTime: "19:30",
+        endTime: "21:00",
+        category: "合奏",
+        title: "ジャズブラス合奏",
+        conductor: "公文",
+        pieceIds: ["rep-9"],
+        customPiece: "",
+        youtubeUrl: "",
+        message: ""
+      }
     ],
     generalNotes: "18:00〜21:00"
   },
@@ -255,10 +338,50 @@ export const INITIAL_PRACTICE_DATA = [
       { title: "ディスコ・キッド", conductor: "公文" }
     ],
     timetable: [
-      { startTime: "12:00", endTime: "13:00", category: "個人練習", title: "搬入・個人ウォームアップ", details: "大型打楽器・譜面台セッティング", pieceIds: [] },
-      { startTime: "13:00", endTime: "17:00", category: "パート練習", title: "昼間セクション・パート集中練習", details: "音量・響きの確認", pieceIds: ["rep-5", "rep-7"] },
-      { startTime: "17:00", endTime: "18:00", category: "休憩", title: "夕食・休憩", details: "各自持参または周辺にて", pieceIds: [] },
-      { startTime: "18:00", endTime: "22:00", category: "合奏", title: "夜間全体強化合奏", details: "22:00終了・片付け", pieceIds: ["rep-5", "rep-7", "rep-11"] }
+      {
+        startTime: "12:00",
+        endTime: "13:00",
+        category: "個人練習",
+        title: "搬入・大型打楽器セッティング・ウォームアップ",
+        conductor: "各自",
+        pieceIds: [],
+        customPiece: "打楽器セッティング",
+        youtubeUrl: "",
+        message: "大型楽器の搬入にご協力をお願いいたします。"
+      },
+      {
+        startTime: "13:00",
+        endTime: "17:00",
+        category: "パート練習",
+        title: "昼間プログレ・変拍子セクション集中練習",
+        conductor: "公文",
+        pieceIds: ["rep-5", "rep-7"],
+        customPiece: "高速変拍子カウント合わせ",
+        youtubeUrl: "https://www.youtube.com/results?search_query=21%E4%B8%96%E7%B4%80%E3%81%AE%E3%82%B9%E3%82%AD%E3%83%83%E3%83%84%E3%82%A9%E3%82%A4%E3%83%89%E3%83%9E%E3%83%B3+%E5%90%B9%E5%A5%8F%E6%A5%BD",
+        message: "変拍子のタテの刻みをパート毎にしっかり共有。"
+      },
+      {
+        startTime: "17:00",
+        endTime: "18:00",
+        category: "その他",
+        title: "夕食・休憩時間",
+        conductor: "-",
+        pieceIds: [],
+        customPiece: "",
+        youtubeUrl: "",
+        message: "各自持参の夕食または周辺店舗をご利用ください。"
+      },
+      {
+        startTime: "18:00",
+        endTime: "22:00",
+        category: "合奏",
+        title: "夜間全体強化合奏 & ディスコキッド",
+        conductor: "公文",
+        pieceIds: ["rep-5", "rep-7", "rep-11"],
+        customPiece: "アンコールディスコ手拍子合わせ",
+        youtubeUrl: "",
+        message: "22:00完全撤収となります。"
+      }
     ],
     generalNotes: "長時間練習 12:00〜22:00 (天然色劇場) 水分補給を十分に準備してください。"
   },
@@ -276,9 +399,39 @@ export const INITIAL_PRACTICE_DATA = [
       { title: "76本のトロンボーン", conductor: "未定" }
     ],
     timetable: [
-      { startTime: "09:00", endTime: "12:00", category: "合奏", title: "午前全体合奏", details: "第1部通し", pieceIds: ["rep-1"] },
-      { startTime: "12:00", endTime: "13:00", category: "休憩", title: "昼食休憩", details: "", pieceIds: [] },
-      { startTime: "13:00", endTime: "17:00", category: "合奏", title: "午後通し合奏 & メイン曲仕上げ", details: "17:00 完全撤収", pieceIds: ["rep-10", "rep-12"] }
+      {
+        startTime: "09:00",
+        endTime: "12:00",
+        category: "合奏",
+        title: "午前全体合奏 (第1部プログラム通し)",
+        conductor: "公文",
+        pieceIds: ["rep-1"],
+        customPiece: "",
+        youtubeUrl: "",
+        message: "09:00音出し開始です。"
+      },
+      {
+        startTime: "12:00",
+        endTime: "13:00",
+        category: "その他",
+        title: "昼食休憩",
+        conductor: "-",
+        pieceIds: [],
+        customPiece: "",
+        youtubeUrl: "",
+        message: ""
+      },
+      {
+        startTime: "13:00",
+        endTime: "17:00",
+        category: "合奏",
+        title: "午後メイン曲仕上げ & トロンボーンフィーチャー",
+        conductor: "公文 / 下川",
+        pieceIds: ["rep-10", "rep-12"],
+        customPiece: "76本トロンボーン前列進行練習",
+        youtubeUrl: "",
+        message: "17:00片付け・撤収"
+      }
     ],
     generalNotes: "09:00〜17:00 (天然色劇場)"
   },
@@ -295,7 +448,17 @@ export const INITIAL_PRACTICE_DATA = [
       { title: "好きすぎて滅！", conductor: "下川" }
     ],
     timetable: [
-      { startTime: "12:00", endTime: "22:00", category: "合奏", title: "長時間集中リハーサル", details: "12:00〜22:00", pieceIds: ["rep-4", "rep-6"] }
+      {
+        startTime: "12:00",
+        endTime: "22:00",
+        category: "合奏",
+        title: "下川指揮 企画プログラム集中合奏",
+        conductor: "下川",
+        pieceIds: ["rep-4", "rep-6"],
+        customPiece: "",
+        youtubeUrl: "",
+        message: "富家防災コミュニティセンターにて12時〜22時"
+      }
     ],
     generalNotes: "12:00〜22:00 場所: 富家防災コミュニティセンター"
   },
@@ -312,7 +475,17 @@ export const INITIAL_PRACTICE_DATA = [
       { title: "マツケンサンバⅡ", conductor: "公文" }
     ],
     timetable: [
-      { startTime: "08:30", endTime: "17:00", category: "合奏", title: "朝一開始リハーサル", details: "08:30集合・セッティング", pieceIds: ["rep-2", "rep-8"] }
+      {
+        startTime: "08:30",
+        endTime: "17:00",
+        category: "合奏",
+        title: "早朝リハーサル & 全体ポップス仕上げ",
+        conductor: "公文",
+        pieceIds: ["rep-2", "rep-8"],
+        customPiece: "",
+        youtubeUrl: "",
+        message: "08:30集合となりますので早めの準備をお願いいたします。"
+      }
     ],
     generalNotes: "08:30〜17:00 (8時半開始ですので早めの準備をお願いします)"
   },
@@ -330,7 +503,17 @@ export const INITIAL_PRACTICE_DATA = [
       { title: "マツケンサンバⅡ", conductor: "公文" }
     ],
     timetable: [
-      { startTime: "12:00", endTime: "22:00", category: "合奏", title: "本番直前全体リハーサル", details: "12:00〜22:00", pieceIds: ["rep-1", "rep-8", "rep-10"] }
+      {
+        startTime: "12:00",
+        endTime: "22:00",
+        category: "合奏",
+        title: "本番直前全曲リハーサル",
+        conductor: "公文 / 下川",
+        pieceIds: ["rep-1", "rep-8", "rep-10"],
+        customPiece: "",
+        youtubeUrl: "",
+        message: "本番直前につき全曲の演出・並び順確認を行います。"
+      }
     ],
     generalNotes: "12:00〜22:00 場所: 天然色劇場"
   },
@@ -346,7 +529,17 @@ export const INITIAL_PRACTICE_DATA = [
       { title: "全プログラム12曲", conductor: "公文 / 下川" }
     ],
     timetable: [
-      { startTime: "09:00", endTime: "17:00", category: "合奏", title: "全曲最終通しリハーサル", details: "09:00〜17:00", pieceIds: ["rep-1", "rep-2", "rep-3", "rep-4", "rep-5", "rep-6", "rep-7", "rep-8", "rep-9", "rep-10", "rep-11", "rep-12"] }
+      {
+        startTime: "09:00",
+        endTime: "17:00",
+        category: "合奏",
+        title: "全12曲最終ランスルー (総仕上げ)",
+        conductor: "公文 / 下川",
+        pieceIds: ["rep-1", "rep-2", "rep-3", "rep-4", "rep-5", "rep-6", "rep-7", "rep-8", "rep-9", "rep-10", "rep-11", "rep-12"],
+        customPiece: "アンコール2曲含め全曲通し",
+        youtubeUrl: "",
+        message: "最終リハーサルです。楽譜・手拍子・かけ声の最終確認を揃えます。"
+      }
     ],
     generalNotes: "09:00〜17:00 場所: 富家防災コミュニティセンター"
   }

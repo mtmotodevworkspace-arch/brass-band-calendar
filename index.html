@@ -18,7 +18,7 @@
     }
   </script>
 
-  <link rel="stylesheet" href="style.css?v=20260812_v12">
+  <link rel="stylesheet" href="style.css?v=20260817_v13">
 </head>
 <body>
   <!-- Ambient Liquid Glass Glow Orbs -->
@@ -315,7 +315,7 @@
           </button>
           <div style="display: flex; gap: 10px; margin-left: auto;">
             <button type="button" class="btn-glass" data-close="editSongModal">キャンセル</button>
-            <button type="submit" class="btn-glass btn-primary-gold">✔ 保存して保存保持</button>
+            <button type="submit" class="btn-glass btn-primary-gold">✔ 保存する</button>
           </div>
         </div>
       </form>
@@ -366,27 +366,14 @@
         </div>
 
         <div class="form-group">
-          <label for="inputConductors">👨‍🏫 指揮者 (公文 / 下川)</label>
+          <label for="inputConductors">👨‍🏫 当日全体指揮者 (公文 / 下川)</label>
           <input type="text" id="inputConductors" class="form-control" placeholder="例: 公文 / 下川">
         </div>
 
-        <!-- Practice Pieces Section -->
+        <!-- Timetable Hourly Breakdown Dynamic Section (時間軸明示対応) -->
         <div class="form-group">
           <label class="section-title">
-            <span>🎼 当日の練習曲 (ライブラリから選択または個別入力)</span>
-            <button type="button" id="btnAddPieceRow" class="btn-glass btn-sm" style="margin-left: auto;">
-              ➕ 曲を追加
-            </button>
-          </label>
-          <div id="piecesInputsContainer">
-            <!-- Dynamic piece rows inserted here -->
-          </div>
-        </div>
-
-        <!-- Timetable Hourly Breakdown Dynamic Section -->
-        <div class="form-group">
-          <label class="section-title">
-            <span>⏱️ 当日の練習時間割 (複数曲の割り当て可能)</span>
+            <span>⏱️ タイムスケジュール（時間軸）の枠登録</span>
             <button type="button" id="btnAddTimetableRow" class="btn-glass btn-sm" style="margin-left: auto;">
               ➕ 時間枠を追加
             </button>
@@ -396,8 +383,21 @@
           </div>
         </div>
 
+        <!-- Practice Pieces Section -->
         <div class="form-group">
-          <label for="inputGeneralNotes">📝 連絡事項・備考</label>
+          <label class="section-title">
+            <span>🎼 練習予定曲目ライブラリ情報</span>
+            <button type="button" id="btnAddPieceRow" class="btn-glass btn-sm" style="margin-left: auto;">
+              ➕ 曲を追加
+            </button>
+          </label>
+          <div id="piecesInputsContainer">
+            <!-- Dynamic piece rows inserted here -->
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="inputGeneralNotes">💬 全体連絡事項・備考</label>
           <textarea id="inputGeneralNotes" class="form-control" placeholder="例: 18:00〜21:00 / よさこい被り注意 / 譜面台持参"></textarea>
         </div>
 
@@ -413,11 +413,11 @@
   <div id="detailModal" class="modal-backdrop">
     <div class="modal-content glass-panel glass-panel-gold" style="max-width: 760px;">
       <div class="modal-header">
-        <h3>ℹ️ 練習詳細 & 参考音源 (YouTube)</h3>
+        <h3>ℹ️ 練習詳細 & タイムスケジュール</h3>
         <button class="close-modal-btn" data-close="detailModal">&times;</button>
       </div>
       <div id="detailModalBody">
-        <!-- Rendered detail content with direct YouTube links -->
+        <!-- Rendered detail content with visual timeline and YouTube links -->
       </div>
     </div>
   </div>
@@ -507,7 +507,7 @@
     </div>
   </div>
 
-  <!-- Main JavaScript App Loader with Cache-Buster v12 -->
-  <script type="module" src="app.js?v=20260812_v12"></script>
+  <!-- Main JavaScript App Loader with Cache-Buster v13 -->
+  <script type="module" src="app.js?v=20260817_v13"></script>
 </body>
 </html>
