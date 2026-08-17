@@ -1,6 +1,6 @@
 /**
  * 吹奏楽専用カレンダー Web App メインロジック (PC版)
- * View-Only Mode (閲覧専用・デフォルト) & Admin Mode (管理者用) + タイムスケジュール時間軸明示UI
+ * View-Only Mode (閲覧専用・デフォルト) & Admin Mode (管理者用) + タイムスケジュール時間軸明示UI (v14 Purge)
  */
 
 import { INITIAL_PRACTICE_DATA, MASTER_REPERTOIRE } from './sample-data.js';
@@ -18,9 +18,9 @@ let highestZIndex = 5000;
 // Admin Mode defaults strictly to FALSE (閲覧専用) for all visitors
 let isAdminMode = false;
 
-// Storage Keys (v13 for new Timeline Schema)
-const PERMANENT_STORAGE_KEY_PRACTICES = 'brass_band_calendar_practices_v13';
-const PERMANENT_STORAGE_KEY_REPERTOIRE = 'brass_band_calendar_repertoire_v13';
+// Storage Keys (v14 for Hard Cache Invalidation)
+const PERMANENT_STORAGE_KEY_PRACTICES = 'brass_band_calendar_practices_v14';
+const PERMANENT_STORAGE_KEY_REPERTOIRE = 'brass_band_calendar_repertoire_v14';
 
 document.addEventListener('DOMContentLoaded', () => {
   hardPurgeSenseiFromLocalStorage();
@@ -31,19 +31,28 @@ document.addEventListener('DOMContentLoaded', () => {
   render();
 });
 
-/* Hard Purge old localStorage data containing "先生" */
+/* Hard Purge ALL legacy localStorage versions except v14 and any string containing "先生" */
 function hardPurgeSenseiFromLocalStorage() {
   try {
     for (let i = localStorage.length - 1; i >= 0; i--) {
       const k = localStorage.key(i);
       if (k && (k.includes('brass') || k.includes('repertoire') || k.includes('practice'))) {
-        const val = localStorage.getItem(k);
-        if (val && val.includes('先生')) {
+        if (!k.endsWith('_v14')) {
           localStorage.removeItem(k);
+        } else {
+          const val = localStorage.getItem(k);
+          if (val && val.includes('先生')) {
+            localStorage.removeItem(k);
+          }
         }
       }
     }
   } catch (e) {}
+}
+
+function cleanSensei(str) {
+  if (!str) return '';
+  return String(str).replace(/\s*先生/g, '').trim();
 }
 
 /* Admin / View-Only Mode Engine */
@@ -118,6 +127,20 @@ function initStorage() {
     if (rData && !rData.includes('先生')) loadedRepertoire = JSON.parse(rData);
   } catch (e) {}
 
+  // Check if loaded practices match new timetable schema (must have message/conductor/customPiece in timetable)
+  let isSchemaValid = false;
+  if (loadedPractices && Array.isArray(loadedPractices) && loadedPractices.length > 0) {
+    const firstWithTimetable = loadedPractices.find(p => p.timetable && p.timetable.length > 0);
+    if (firstWithTimetable && firstWithTimetable.timetable[0].startTime) {
+      isSchemaValid = true;
+    }
+  }
+
+  if (!isSchemaValid) {
+    loadedPractices = null;
+    loadedRepertoire = null;
+  }
+
   practices = loadedPractices || JSON.parse(JSON.stringify(INITIAL_PRACTICE_DATA));
   repertoire = loadedRepertoire || JSON.parse(JSON.stringify(MASTER_REPERTOIRE));
 
@@ -127,21 +150,16 @@ function initStorage() {
 }
 
 function sanitizeAllConductors(target) {
-  const clean = (str) => {
-    if (!str) return '';
-    return str.replace(/\s*先生/g, '').trim();
-  };
-
   if (Array.isArray(target)) {
     target.forEach(item => {
-      if (item.conductor) item.conductor = clean(item.conductor);
-      if (item.conductors) item.conductors = clean(item.conductors);
-      if (item.points) item.points = clean(item.points);
+      if (item.conductor) item.conductor = cleanSensei(item.conductor);
+      if (item.conductors) item.conductors = cleanSensei(item.conductors);
+      if (item.points) item.points = cleanSensei(item.points);
       if (item.pieces) {
-        item.pieces.forEach(p => { if (p.conductor) p.conductor = clean(p.conductor); });
+        item.pieces.forEach(p => { if (p.conductor) p.conductor = cleanSensei(p.conductor); });
       }
       if (item.timetable) {
-        item.timetable.forEach(t => { if (t.conductor) t.conductor = clean(t.conductor); });
+        item.timetable.forEach(t => { if (t.conductor) t.conductor = cleanSensei(t.conductor); });
       }
     });
   }
@@ -530,7 +548,7 @@ function renderRepertoireCardsHtml(songList) {
   if (!songList || songList.length === 0) return `<div style="padding: 20px; text-align: center; color: var(--text-muted);">曲目が登録されていません。</div>`;
 
   return songList.map(song => {
-    const cleanConductor = (song.conductor || '未定').replace(/\s*先生/g, '').trim();
+    const cleanConductor = cleanSensei(song.conductor || '未定');
 
     const videoBtnsHtml = (song.videos || []).map((v, idx) => `
       <a href="${escapeHtml(v.url)}" target="_blank" rel="noopener noreferrer" class="btn-glass btn-sm btn-yt-highlight" style="display: inline-flex; align-items: center; gap: 6px; text-decoration: none; margin-right: 6px; margin-top: 6px;">
@@ -560,7 +578,7 @@ function renderRepertoireCardsHtml(songList) {
 
         ${song.points ? `
           <div class="piece-points" style="font-size: 0.85rem; padding: 10px; margin-top: 8px;">
-            ${escapeHtml(song.points.replace(/\s*先生/g, ''))}
+            ${escapeHtml(cleanSensei(song.points))}
           </div>
         ` : ''}
 
@@ -598,8 +616,8 @@ function openEditSongModal(songId = null) {
       document.getElementById('editSongNo').value = song.no || '';
       document.getElementById('editSongTitle').value = song.title || '';
       document.getElementById('editSongComposer').value = song.composer || '';
-      document.getElementById('editSongConductor').value = (song.conductor || '').replace(/\s*先生/g, '');
-      document.getElementById('editSongPoints').value = song.points || '';
+      document.getElementById('editSongConductor').value = cleanSensei(song.conductor);
+      document.getElementById('editSongPoints').value = cleanSensei(song.points);
 
       deleteBtn.style.display = 'inline-flex';
       (song.videos || []).forEach(v => addSongVideoInputRow(v));
@@ -643,8 +661,8 @@ function handleEditSongSubmit(e) {
   const no = document.getElementById('editSongNo').value;
   const title = document.getElementById('editSongTitle').value;
   const composer = document.getElementById('editSongComposer').value;
-  const conductor = document.getElementById('editSongConductor').value.replace(/\s*先生/g, '');
-  const points = document.getElementById('editSongPoints').value;
+  const conductor = cleanSensei(document.getElementById('editSongConductor').value);
+  const points = cleanSensei(document.getElementById('editSongPoints').value);
 
   const videos = [];
   document.querySelectorAll('#songVideosInputsContainer .video-input-row').forEach(row => {
@@ -688,8 +706,8 @@ function renderTimelineHtml(timetable = [], defaultConductors = '') {
 
   const slotsHtml = timetable.map((slot) => {
     const assignedSongs = (slot.pieceIds || []).map(songId => repertoire.find(s => s.id === songId)).filter(Boolean);
-    const customPieceText = slot.customPiece ? slot.customPiece.replace(/\s*先生/g, '') : '';
-    const slotConductor = (slot.conductor || defaultConductors || '').replace(/\s*先生/g, '').trim();
+    const customPieceText = cleanSensei(slot.customPiece);
+    const slotConductor = cleanSensei(slot.conductor || defaultConductors);
 
     const songChipsHtml = [];
     assignedSongs.forEach(song => {
@@ -724,10 +742,10 @@ function renderTimelineHtml(timetable = [], defaultConductors = '') {
     }
 
     // メッセージ: 記入がある場合のみ表示
-    const slotMsg = (slot.message || slot.details || '').trim();
-    const messageHtml = slotMsg ? `
+    const rawMsg = (slot.message || (slot.details && !slot.details.includes('返し合奏') ? slot.details : '')).trim();
+    const messageHtml = rawMsg ? `
       <div class="timeline-message-box">
-        <span>💬 <strong>メッセージ:</strong> ${escapeHtml(slotMsg)}</span>
+        <span>💬 <strong>メッセージ:</strong> ${escapeHtml(cleanSensei(rawMsg))}</span>
       </div>
     ` : '';
 
@@ -744,7 +762,7 @@ function renderTimelineHtml(timetable = [], defaultConductors = '') {
           ${slotConductor ? `<span class="timeline-conductor-tag">👨‍🏫 指揮: <strong>${escapeHtml(slotConductor)}</strong></span>` : ''}
         </div>
 
-        <div class="timeline-slot-title">${escapeHtml(slot.title || '練習セクション')}</div>
+        <div class="timeline-slot-title">${escapeHtml(cleanSensei(slot.title || '練習セクション'))}</div>
 
         ${songChipsHtml.length > 0 ? `
           <div class="timeline-songs-group">
@@ -793,7 +811,7 @@ function renderPracticeCardHtml(practice, showDateBadge = false) {
       </div>
     `;
 
-    const cleanCond = (piece.conductor || '').replace(/\s*先生/g, '');
+    const cleanCond = cleanSensei(piece.conductor);
 
     return `
       <div class="piece-card">
@@ -801,20 +819,20 @@ function renderPracticeCardHtml(practice, showDateBadge = false) {
           <span class="piece-title">🎼 ${escapeHtml(piece.title || '無題の曲')}</span>
           ${cleanCond ? `<span class="piece-conductor">👨‍🏫 指導: ${escapeHtml(cleanCond)}</span>` : ''}
         </div>
-        ${piece.points ? `<div class="piece-points">${escapeHtml(piece.points)}</div>` : ''}
+        ${piece.points ? `<div class="piece-points">${escapeHtml(cleanSensei(piece.points))}</div>` : ''}
         ${videoTabsHtml}
       </div>
     `;
   }).join('');
 
   const timetableTimelineHtml = renderTimelineHtml(practice.timetable, practice.conductors);
-  const cleanPracticeCond = (practice.conductors || '').replace(/\s*先生/g, '');
+  const cleanPracticeCond = cleanSensei(practice.conductors);
 
   return `
     <div class="practice-card glass-panel" data-cat="${practice.category}" id="card-${practice.id}">
       <div class="card-header-main">
         <div class="card-title-group">
-          <h2 style="font-size: 1.15rem;">${escapeHtml(practice.title)}</h2>
+          <h2 style="font-size: 1.15rem;">${escapeHtml(cleanSensei(practice.title))}</h2>
           ${showDateBadge ? `<div style="font-size: 0.88rem; color: var(--color-brass-light); font-weight: 700; margin-top: 2px;">📅 ${practice.date}</div>` : ''}
         </div>
         <div class="card-meta-badges">
@@ -843,9 +861,9 @@ function renderPracticeCardHtml(practice, showDateBadge = false) {
         </div>
       ` : ''}
 
-      ${practice.generalNotes ? `
+      ${practice.generalNotes && !practice.generalNotes.includes('18:00〜21:00 日章') ? `
         <div style="margin-top: 12px; padding: 10px; background: rgba(229,193,88,0.08); border-radius: var(--radius-sm); border: 1px dashed var(--glass-border-gold); font-size: 0.82rem; color: var(--text-secondary);">
-          💬 <strong>全体連絡事項:</strong> ${escapeHtml(practice.generalNotes)}
+          💬 <strong>全体連絡事項:</strong> ${escapeHtml(cleanSensei(practice.generalNotes))}
         </div>
       ` : ''}
 
@@ -915,7 +933,7 @@ function openPracticeModal(id = null) {
       document.getElementById('inputTitle').value = p.title;
       document.getElementById('inputLocationName').value = p.locationName || '';
       document.getElementById('inputLocationAddress').value = p.locationAddress || '';
-      document.getElementById('inputConductors').value = (p.conductors || '').replace(/\s*先生/g, '');
+      document.getElementById('inputConductors').value = cleanSensei(p.conductors);
       document.getElementById('inputGeneralNotes').value = p.generalNotes || '';
 
       (p.pieces || []).forEach(piece => addPieceInputRow(piece));
@@ -938,7 +956,7 @@ function addPieceInputRow(piece = {}) {
   row.className = 'piece-input-row';
 
   const optionsHtml = repertoire.map(song => `
-    <option value="${song.id}" ${piece.title === song.title ? 'selected' : ''}>[${song.section} ${song.no}] ${song.title} (${song.conductor})</option>
+    <option value="${song.id}" ${piece.title === song.title ? 'selected' : ''}>[${song.section} ${song.no}] ${song.title} (${cleanSensei(song.conductor)})</option>
   `).join('');
 
   row.innerHTML = `
@@ -957,7 +975,7 @@ function addPieceInputRow(piece = {}) {
       </div>
       <div class="form-group">
         <label>指揮者 (公文 / 下川)</label>
-        <input type="text" class="form-control piece-conductor-input" value="${escapeHtml((piece.conductor || '').replace(/\s*先生/g, ''))}">
+        <input type="text" class="form-control piece-conductor-input" value="${escapeHtml(cleanSensei(piece.conductor))}">
       </div>
     </div>
   `;
@@ -966,7 +984,7 @@ function addPieceInputRow(piece = {}) {
     const song = repertoire.find(s => s.id === e.target.value);
     if (song) {
       row.querySelector('.piece-title-input').value = song.title;
-      row.querySelector('.piece-conductor-input').value = (song.conductor || '').replace(/\s*先生/g, '');
+      row.querySelector('.piece-conductor-input').value = cleanSensei(song.conductor);
     }
   });
 
@@ -983,7 +1001,7 @@ function addTimetableInputRow(slot = {}) {
   const songCheckboxesHtml = repertoire.map(song => `
     <label class="song-checkbox-item">
       <input type="checkbox" class="slot-piece-checkbox" value="${song.id}" ${assignedPieceIds.includes(song.id) ? 'checked' : ''}>
-      <span>[${song.section}] ${escapeHtml(song.title)} (${song.conductor})</span>
+      <span>[${song.section}] ${escapeHtml(song.title)} (${cleanSensei(song.conductor)})</span>
     </label>
   `).join('');
 
@@ -1014,13 +1032,13 @@ function addTimetableInputRow(slot = {}) {
       </div>
       <div class="form-group">
         <label>👨‍🏫 指揮者 (公文 / 下川 / 自由入力)</label>
-        <input type="text" class="form-control slot-conductor-input" value="${escapeHtml((slot.conductor || '').replace(/\s*先生/g, ''))}" placeholder="例: 公文 / 下川">
+        <input type="text" class="form-control slot-conductor-input" value="${escapeHtml(cleanSensei(slot.conductor))}" placeholder="例: 公文 / 下川">
       </div>
     </div>
 
     <div class="form-group" style="margin-bottom: 8px;">
       <label>✏️ 時間枠タイトル *</label>
-      <input type="text" class="form-control slot-title-input" value="${escapeHtml(slot.title || '')}" placeholder="例: 全体合奏 (第1部通し) / セクション練習" required>
+      <input type="text" class="form-control slot-title-input" value="${escapeHtml(cleanSensei(slot.title))}" placeholder="例: 全体合奏 (第1部通し) / セクション練習" required>
     </div>
 
     <div class="form-group" style="margin-bottom: 8px;">
@@ -1032,7 +1050,7 @@ function addTimetableInputRow(slot = {}) {
 
     <div class="form-group" style="margin-bottom: 8px;">
       <label>✏️ 練習曲目 (自由入力・補足曲名)</label>
-      <input type="text" class="form-control slot-custom-piece-input" value="${escapeHtml(slot.customPiece || '')}" placeholder="例: 冒頭ファンファーレ、アンコール案、基礎合奏トレモロ">
+      <input type="text" class="form-control slot-custom-piece-input" value="${escapeHtml(cleanSensei(slot.customPiece))}" placeholder="例: 冒頭ファンファーレ、アンコール案、基礎合奏トレモロ">
     </div>
 
     <div class="form-row" style="margin-bottom: 8px;">
@@ -1042,7 +1060,7 @@ function addTimetableInputRow(slot = {}) {
       </div>
       <div class="form-group">
         <label>💬 メッセージ (記入がある場合のみ表示)</label>
-        <input type="text" class="form-control slot-message-input" value="${escapeHtml(slot.message || slot.details || '')}" placeholder="例: 16:00開始にご注意ください、譜面台持参">
+        <input type="text" class="form-control slot-message-input" value="${escapeHtml(cleanSensei(slot.message || slot.details))}" placeholder="例: 16:00開始にご注意ください、譜面台持参">
       </div>
     </div>
   `;
@@ -1057,10 +1075,10 @@ function handlePracticeSubmit(e) {
   const id = document.getElementById('practiceId').value || 'p-' + Date.now();
   const date = document.getElementById('inputDate').value;
   const category = document.getElementById('inputCategory').value;
-  const title = document.getElementById('inputTitle').value;
+  const title = cleanSensei(document.getElementById('inputTitle').value);
   const locationName = document.getElementById('inputLocationName').value;
-  const conductors = document.getElementById('inputConductors').value.replace(/\s*先生/g, '');
-  const generalNotes = document.getElementById('inputGeneralNotes').value;
+  const conductors = cleanSensei(document.getElementById('inputConductors').value);
+  const generalNotes = cleanSensei(document.getElementById('inputGeneralNotes').value);
 
   const pieces = [];
   document.querySelectorAll('#piecesInputsContainer .piece-input-row').forEach(row => {
@@ -1068,21 +1086,21 @@ function handlePracticeSubmit(e) {
     if (pTitle) {
       pieces.push({
         title: pTitle,
-        conductor: row.querySelector('.piece-conductor-input').value.trim().replace(/\s*先生/g, '')
+        conductor: cleanSensei(row.querySelector('.piece-conductor-input').value.trim())
       });
     }
   });
 
   const timetable = [];
   document.querySelectorAll('#timetableInputsContainer .timetable-input-row').forEach(row => {
-    const sTitle = row.querySelector('.slot-title-input').value.trim();
+    const sTitle = cleanSensei(row.querySelector('.slot-title-input').value.trim());
     const startTime = row.querySelector('.slot-start-input').value;
     const endTime = row.querySelector('.slot-end-input').value;
     const slotCategory = row.querySelector('.slot-category-select').value;
-    const conductor = row.querySelector('.slot-conductor-input').value.trim().replace(/\s*先生/g, '');
-    const customPiece = row.querySelector('.slot-custom-piece-input').value.trim();
+    const conductor = cleanSensei(row.querySelector('.slot-conductor-input').value.trim());
+    const customPiece = cleanSensei(row.querySelector('.slot-custom-piece-input').value.trim());
     const youtubeUrl = row.querySelector('.slot-yt-input').value.trim();
-    const message = row.querySelector('.slot-message-input').value.trim();
+    const message = cleanSensei(row.querySelector('.slot-message-input').value.trim());
 
     const checkedIds = Array.from(row.querySelectorAll('.slot-piece-checkbox:checked')).map(cb => cb.value);
 
@@ -1191,7 +1209,7 @@ function shareBulkToLine() {
   if (selected.length === 0) return alert('期間内の練習がありません');
   let text = `🎵【吹奏楽 一括練習案内】\n--------------------\n`;
   selected.forEach((p, i) => {
-    text += `\n【${i+1}】${p.date} (${p.category})\n📌 ${p.title}\n📍 ${p.locationName || '未定'}\n👨‍🏫 指揮: ${p.conductors || '未定'}\n`;
+    text += `\n【${i+1}】${p.date} (${p.category})\n📌 ${cleanSensei(p.title)}\n📍 ${p.locationName || '未定'}\n👨‍🏫 指揮: ${cleanSensei(p.conductors) || '未定'}\n`;
   });
   text += `\n📱 Webアプリ:\n${window.location.href}`;
   window.open(`https://line.me/R/msg/text/?${encodeURIComponent(text)}`, '_blank');
@@ -1201,7 +1219,7 @@ function copyBulkLineTextToClipboard() {
   const selected = getPracticesInSelectedRange();
   let text = `🎵【吹奏楽 一括練習案内】\n--------------------\n`;
   selected.forEach((p, i) => {
-    text += `\n【${i+1}】${p.date} (${p.category})\n📌 ${p.title}\n📍 ${p.locationName || '未定'}\n👨‍🏫 指揮: ${p.conductors || '未定'}\n`;
+    text += `\n【${i+1}】${p.date} (${p.category})\n📌 ${cleanSensei(p.title)}\n📍 ${p.locationName || '未定'}\n👨‍🏫 指揮: ${cleanSensei(p.conductors) || '未定'}\n`;
   });
   navigator.clipboard.writeText(text).then(() => alert('一括練習案内をコピーしました'));
 }
@@ -1215,14 +1233,14 @@ function openExportModal(id) {
 function shareToLine() {
   if (!activePracticeForExport) return;
   const p = activePracticeForExport;
-  let text = `🎵【吹奏楽 練習連絡】\n📌 ${p.title}\n📅 ${p.date}\n📍 場所: ${p.locationName || '未定'}\n👨‍🏫 指揮: ${p.conductors || '未定'}\n📱 Webアプリ:\n${window.location.href}`;
+  let text = `🎵【吹奏楽 練習連絡】\n📌 ${cleanSensei(p.title)}\n📅 ${p.date}\n📍 場所: ${p.locationName || '未定'}\n👨‍🏫 指揮: ${cleanSensei(p.conductors) || '未定'}\n📱 Webアプリ:\n${window.location.href}`;
   window.open(`https://line.me/R/msg/text/?${encodeURIComponent(text)}`, '_blank');
 }
 
 function copyLineTextToClipboard() {
   if (!activePracticeForExport) return;
   const p = activePracticeForExport;
-  let text = `🎵【吹奏楽 練習連絡】\n📌 ${p.title}\n📅 ${p.date}\n📍 場所: ${p.locationName || '未定'}\n👨‍🏫 指揮: ${p.conductors || '未定'}\n📱 Webアプリ:\n${window.location.href}`;
+  let text = `🎵【吹奏楽 練習連絡】\n📌 ${cleanSensei(p.title)}\n📅 ${p.date}\n📍 場所: ${p.locationName || '未定'}\n👨‍🏫 指揮: ${cleanSensei(p.conductors) || '未定'}\n📱 Webアプリ:\n${window.location.href}`;
   navigator.clipboard.writeText(text).then(() => alert('テキストをコピーしました'));
 }
 

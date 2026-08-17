@@ -1,13 +1,13 @@
 /**
  * 吹奏楽専用カレンダー Smartphone App Main Logic (mobile-app.js)
- * View-Only Mode (閲覧専用・デフォルト) & Admin Mode (管理者用) + タイムスケジュール時間軸明示UI
+ * View-Only Mode (閲覧専用・デフォルト) & Admin Mode (管理者用) + タイムスケジュール時間軸明示UI (v14 Purge)
  */
 
 import { INITIAL_PRACTICE_DATA, MASTER_REPERTOIRE } from './sample-data.js';
 
-// Storage Keys (v13 for Timeline Schema)
-const PERMANENT_STORAGE_KEY_PRACTICES = 'brass_band_calendar_practices_v13';
-const PERMANENT_STORAGE_KEY_REPERTOIRE = 'brass_band_calendar_repertoire_v13';
+// Storage Keys (v14 for Hard Cache Invalidation)
+const PERMANENT_STORAGE_KEY_PRACTICES = 'brass_band_calendar_practices_v14';
+const PERMANENT_STORAGE_KEY_REPERTOIRE = 'brass_band_calendar_repertoire_v14';
 
 // Global State
 let practices = [];
@@ -28,18 +28,28 @@ document.addEventListener('DOMContentLoaded', () => {
   renderMobile();
 });
 
+/* Hard Purge ALL legacy localStorage versions except v14 and any string containing "先生" */
 function hardPurgeSenseiFromLocalStorage() {
   try {
     for (let i = localStorage.length - 1; i >= 0; i--) {
       const k = localStorage.key(i);
       if (k && (k.includes('brass') || k.includes('repertoire') || k.includes('practice'))) {
-        const val = localStorage.getItem(k);
-        if (val && val.includes('先生')) {
+        if (!k.endsWith('_v14')) {
           localStorage.removeItem(k);
+        } else {
+          const val = localStorage.getItem(k);
+          if (val && val.includes('先生')) {
+            localStorage.removeItem(k);
+          }
         }
       }
     }
   } catch (e) {}
+}
+
+function cleanSensei(str) {
+  if (!str) return '';
+  return String(str).replace(/\s*先生/g, '').trim();
 }
 
 function checkAdminMode() {
@@ -111,6 +121,20 @@ function initStorage() {
     if (rData && !rData.includes('先生')) loadedRepertoire = JSON.parse(rData);
   } catch (e) {}
 
+  // Check schema validity
+  let isSchemaValid = false;
+  if (loadedPractices && Array.isArray(loadedPractices) && loadedPractices.length > 0) {
+    const firstWithTimetable = loadedPractices.find(p => p.timetable && p.timetable.length > 0);
+    if (firstWithTimetable && firstWithTimetable.timetable[0].startTime) {
+      isSchemaValid = true;
+    }
+  }
+
+  if (!isSchemaValid) {
+    loadedPractices = null;
+    loadedRepertoire = null;
+  }
+
   practices = loadedPractices || JSON.parse(JSON.stringify(INITIAL_PRACTICE_DATA));
   repertoire = loadedRepertoire || JSON.parse(JSON.stringify(MASTER_REPERTOIRE));
 
@@ -120,21 +144,16 @@ function initStorage() {
 }
 
 function sanitizeAllConductors(target) {
-  const clean = (str) => {
-    if (!str) return '';
-    return str.replace(/\s*先生/g, '').trim();
-  };
-
   if (Array.isArray(target)) {
     target.forEach(item => {
-      if (item.conductor) item.conductor = clean(item.conductor);
-      if (item.conductors) item.conductors = clean(item.conductors);
-      if (item.points) item.points = clean(item.points);
+      if (item.conductor) item.conductor = cleanSensei(item.conductor);
+      if (item.conductors) item.conductors = cleanSensei(item.conductors);
+      if (item.points) item.points = cleanSensei(item.points);
       if (item.pieces) {
-        item.pieces.forEach(p => { if (p.conductor) p.conductor = clean(p.conductor); });
+        item.pieces.forEach(p => { if (p.conductor) p.conductor = cleanSensei(p.conductor); });
       }
       if (item.timetable) {
-        item.timetable.forEach(t => { if (t.conductor) t.conductor = clean(t.conductor); });
+        item.timetable.forEach(t => { if (t.conductor) t.conductor = cleanSensei(t.conductor); });
       }
     });
   }
@@ -321,7 +340,7 @@ function createMobileDayCell(dayNum, isOtherMonth, isToday = false, dateStr = nu
   dayEvents.forEach(evt => {
     const dot = document.createElement('div');
     dot.className = `m-event-dot m-dot-${evt.category}`;
-    dot.textContent = evt.title;
+    dot.textContent = cleanSensei(evt.title);
     dotsEl.appendChild(dot);
   });
 
@@ -399,7 +418,7 @@ function renderMobileRepertoireView() {
   }
 
   container.innerHTML = repertoire.map(song => {
-    const cleanCond = (song.conductor || '未定').replace(/\s*先生/g, '').trim();
+    const cleanCond = cleanSensei(song.conductor || '未定');
     const videoBtnsHtml = (song.videos || []).map((v, idx) => `
       <a href="${escapeHtml(v.url)}" target="_blank" rel="noopener noreferrer" class="m-btn-yt-highlight" style="display: inline-flex; align-items: center; gap: 6px; text-decoration: none; margin-right: 6px; margin-top: 6px;">
         🎬 ${escapeHtml(v.title || `演奏動画 ${idx+1}`)} <span style="font-size: 0.72rem; opacity: 0.8;">YouTubeアプリ起動 ↗</span>
@@ -423,7 +442,7 @@ function renderMobileRepertoireView() {
 
         ${song.points ? `
           <div style="font-size: 0.8rem; background: rgba(0,0,0,0.3); padding: 8px; border-radius: 8px; margin-top: 6px; white-space: pre-wrap; color: var(--text-secondary);">
-            ${escapeHtml(song.points.replace(/\s*先生/g, ''))}
+            ${escapeHtml(cleanSensei(song.points))}
           </div>
         ` : ''}
 
@@ -447,8 +466,8 @@ function renderMobileTimelineHtml(timetable = [], defaultConductors = '') {
 
   const slotsHtml = timetable.map((slot) => {
     const assignedSongs = (slot.pieceIds || []).map(songId => repertoire.find(s => s.id === songId)).filter(Boolean);
-    const customPieceText = slot.customPiece ? slot.customPiece.replace(/\s*先生/g, '') : '';
-    const slotConductor = (slot.conductor || defaultConductors || '').replace(/\s*先生/g, '').trim();
+    const customPieceText = cleanSensei(slot.customPiece);
+    const slotConductor = cleanSensei(slot.conductor || defaultConductors);
 
     const songChipsHtml = [];
     assignedSongs.forEach(song => {
@@ -477,10 +496,10 @@ function renderMobileTimelineHtml(timetable = [], defaultConductors = '') {
     }
 
     // メッセージ: 記入がある場合のみ表示
-    const slotMsg = (slot.message || slot.details || '').trim();
-    const messageHtml = slotMsg ? `
+    const rawMsg = (slot.message || (slot.details && !slot.details.includes('返し合奏') ? slot.details : '')).trim();
+    const messageHtml = rawMsg ? `
       <div class="timeline-message-box">
-        💬 <strong>メッセージ:</strong> ${escapeHtml(slotMsg)}
+        💬 <strong>メッセージ:</strong> ${escapeHtml(cleanSensei(rawMsg))}
       </div>
     ` : '';
 
@@ -497,7 +516,7 @@ function renderMobileTimelineHtml(timetable = [], defaultConductors = '') {
         </div>
 
         <div class="timeline-slot-title" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:4px; margin-top:4px;">
-          <span>${escapeHtml(slot.title || '練習セクション')}</span>
+          <span>${escapeHtml(cleanSensei(slot.title || '練習セクション'))}</span>
           ${slotConductor ? `<span class="timeline-conductor-tag">👨‍🏫 指揮: <strong>${escapeHtml(slotConductor)}</strong></span>` : ''}
         </div>
 
@@ -539,7 +558,7 @@ function renderMobilePracticeCardHtml(practice, showDate = false) {
       </a>
     `).join('');
 
-    const cleanCond = (piece.conductor || '').replace(/\s*先生/g, '');
+    const cleanCond = cleanSensei(piece.conductor);
 
     return `
       <div class="m-piece-item">
@@ -547,20 +566,20 @@ function renderMobilePracticeCardHtml(practice, showDate = false) {
           <span style="font-weight:800; font-size:0.95rem; color:var(--color-brass-light);">🎼 ${escapeHtml(piece.title)}</span>
           ${cleanCond ? `<span style="font-size:0.75rem; background:rgba(229,193,88,0.15); color:var(--color-brass-light); padding:2px 6px; border-radius:4px;">👨‍🏫 ${escapeHtml(cleanCond)}</span>` : ''}
         </div>
-        ${piece.points ? `<div style="font-size:0.78rem; color:var(--text-secondary); margin-top:4px;">${escapeHtml(piece.points)}</div>` : ''}
+        ${piece.points ? `<div style="font-size:0.78rem; color:var(--text-secondary); margin-top:4px;">${escapeHtml(cleanSensei(piece.points))}</div>` : ''}
         <div style="display: flex; flex-wrap: wrap; margin-top: 6px;">${videoBtnsHtml}</div>
       </div>
     `;
   }).join('');
 
   const timetableTimelineHtml = renderMobileTimelineHtml(practice.timetable, practice.conductors);
-  const cleanPracticeCond = (practice.conductors || '').replace(/\s*先生/g, '');
+  const cleanPracticeCond = cleanSensei(practice.conductors);
 
   return `
     <div class="m-practice-card" id="m-card-${practice.id}">
       <div style="display:flex; justify-content:space-between; align-items:flex-start;">
         <div>
-          <h3 class="m-card-title">${escapeHtml(practice.title)}</h3>
+          <h3 class="m-card-title">${escapeHtml(cleanSensei(practice.title))}</h3>
           ${showDate ? `<div style="font-size:0.82rem; color:var(--color-brass-light); font-weight:700; margin-top:2px;">📅 ${practice.date}</div>` : ''}
         </div>
         <span class="m-badge m-dot-${practice.category}">${practice.category}</span>
@@ -575,9 +594,9 @@ function renderMobilePracticeCardHtml(practice, showDate = false) {
 
       ${piecesHtml ? `<div style="margin-top:10px;"><div style="font-size:0.82rem; font-weight:800; color:var(--color-brass-light);">🎼 練習曲ライブラリ情報</div>${piecesHtml}</div>` : ''}
 
-      ${practice.generalNotes ? `
+      ${practice.generalNotes && !practice.generalNotes.includes('18:00〜21:00 日章') ? `
         <div style="margin-top:8px; padding:6px 10px; background:rgba(229,193,88,0.08); border-radius:6px; border:1px dashed var(--glass-border-gold); font-size:0.78rem; color:var(--text-secondary);">
-          💬 <strong>全体連絡事項:</strong> ${escapeHtml(practice.generalNotes)}
+          💬 <strong>全体連絡事項:</strong> ${escapeHtml(cleanSensei(practice.generalNotes))}
         </div>
       ` : ''}
 
@@ -594,7 +613,7 @@ function attachMobilePracticeCardEvents(container) {
     btn.addEventListener('click', (e) => {
       const p = practices.find(item => item.id === e.currentTarget.dataset.id);
       if (p) {
-        let text = `🎵【吹奏楽 練習連絡】\n📌 ${p.title}\n📅 日時: ${p.date}\n📍 場所: ${p.locationName || '未定'}\n👨‍🏫 指揮: ${p.conductors || '未定'}\n📱 アプリ:\n${window.location.href}`;
+        let text = `🎵【吹奏楽 練習連絡】\n📌 ${cleanSensei(p.title)}\n📅 日時: ${p.date}\n📍 場所: ${p.locationName || '未定'}\n👨‍🏫 指揮: ${cleanSensei(p.conductors) || '未定'}\n📱 アプリ:\n${window.location.href}`;
         window.open(`https://line.me/R/msg/text/?${encodeURIComponent(text)}`, '_blank');
       }
     });
@@ -625,7 +644,7 @@ function openMobilePracticeModal(id = null) {
       document.getElementById('mInputCategory').value = p.category;
       document.getElementById('mInputTitle').value = p.title;
       document.getElementById('mInputLocationName').value = p.locationName || '';
-      document.getElementById('mInputConductors').value = (p.conductors || '').replace(/\s*先生/g, '');
+      document.getElementById('mInputConductors').value = cleanSensei(p.conductors);
       document.getElementById('mInputNotes').value = p.generalNotes || '';
 
       (p.pieces || []).forEach(pc => addMobilePieceRow(pc));
@@ -705,22 +724,22 @@ function addMobileTimetableRow(slot = {}) {
       </div>
       <div>
         <label style="font-size:0.72rem; color:var(--text-muted);">👨‍🏫 指揮者</label>
-        <input type="text" class="m-input m-slot-cond" value="${escapeHtml((slot.conductor || '').replace(/\s*先生/g, ''))}" placeholder="公文 / 下川">
+        <input type="text" class="m-input m-slot-cond" value="${escapeHtml(cleanSensei(slot.conductor))}" placeholder="公文 / 下川">
       </div>
     </div>
 
-    <input type="text" class="m-input m-slot-title" value="${escapeHtml(slot.title || '')}" placeholder="時間枠タイトル" style="margin-bottom:4px;">
+    <input type="text" class="m-input m-slot-title" value="${escapeHtml(cleanSensei(slot.title))}" placeholder="時間枠タイトル" style="margin-bottom:4px;">
 
     <div style="margin-top:6px; background:rgba(0,0,0,0.2); padding:6px; border-radius:6px; margin-bottom:4px;">
       <div style="font-size:0.75rem; font-weight:700; color:var(--color-brass-light);">🎼 合わせる曲目 (ライブラリ選択)</div>
       ${songCheckboxesHtml}
     </div>
 
-    <input type="text" class="m-input m-slot-custom-piece" value="${escapeHtml(slot.customPiece || '')}" placeholder="🎼 練習曲目 (自由入力・補足)" style="margin-bottom:4px;">
+    <input type="text" class="m-input m-slot-custom-piece" value="${escapeHtml(cleanSensei(slot.customPiece))}" placeholder="🎼 練習曲目 (自由入力・補足)" style="margin-bottom:4px;">
     
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px;">
       <input type="text" class="m-input m-slot-yt" value="${escapeHtml(slot.youtubeUrl || '')}" placeholder="🎬 YouTube URL">
-      <input type="text" class="m-input m-slot-msg" value="${escapeHtml(slot.message || slot.details || '')}" placeholder="💬 メッセージ">
+      <input type="text" class="m-input m-slot-msg" value="${escapeHtml(cleanSensei(slot.message || slot.details))}" placeholder="💬 メッセージ">
     </div>
   `;
 
@@ -733,10 +752,10 @@ function handleMobilePracticeSubmit(e) {
   const id = document.getElementById('mPracticeId').value || 'p-' + Date.now();
   const date = document.getElementById('mInputDate').value;
   const category = document.getElementById('mInputCategory').value;
-  const title = document.getElementById('mInputTitle').value;
+  const title = cleanSensei(document.getElementById('mInputTitle').value);
   const locationName = document.getElementById('mInputLocationName').value;
-  const conductors = document.getElementById('mInputConductors').value.replace(/\s*先生/g, '');
-  const generalNotes = document.getElementById('mInputNotes').value;
+  const conductors = cleanSensei(document.getElementById('mInputConductors').value);
+  const generalNotes = cleanSensei(document.getElementById('mInputNotes').value);
 
   const pieces = [];
   document.querySelectorAll('#mPiecesContainer .m-piece-item').forEach(row => {
@@ -746,14 +765,14 @@ function handleMobilePracticeSubmit(e) {
 
   const timetable = [];
   document.querySelectorAll('#mTimetableContainer .m-slot-item').forEach(row => {
-    const sTitle = row.querySelector('.m-slot-title').value.trim();
+    const sTitle = cleanSensei(row.querySelector('.m-slot-title').value.trim());
     const startTime = row.querySelector('.m-slot-start').value;
     const endTime = row.querySelector('.m-slot-end').value;
     const slotCategory = row.querySelector('.m-slot-cat').value;
-    const conductor = row.querySelector('.m-slot-cond').value.trim().replace(/\s*先生/g, '');
-    const customPiece = row.querySelector('.m-slot-custom-piece').value.trim();
+    const conductor = cleanSensei(row.querySelector('.m-slot-cond').value.trim());
+    const customPiece = cleanSensei(row.querySelector('.m-slot-custom-piece').value.trim());
     const youtubeUrl = row.querySelector('.m-slot-yt').value.trim();
-    const message = row.querySelector('.m-slot-msg').value.trim();
+    const message = cleanSensei(row.querySelector('.m-slot-msg').value.trim());
 
     const checkedIds = Array.from(row.querySelectorAll('.m-slot-piece-cb:checked')).map(cb => cb.value);
 
@@ -797,8 +816,8 @@ function openMobileEditSongModal(songId = null) {
       document.getElementById('mEditSongNo').value = song.no || '';
       document.getElementById('mEditSongTitle').value = song.title || '';
       document.getElementById('mEditSongComposer').value = song.composer || '';
-      document.getElementById('mEditSongConductor').value = (song.conductor || '').replace(/\s*先生/g, '');
-      document.getElementById('mEditSongPoints').value = song.points || '';
+      document.getElementById('mEditSongConductor').value = cleanSensei(song.conductor);
+      document.getElementById('mEditSongPoints').value = cleanSensei(song.points);
       delBtn.style.display = 'block';
       (song.videos || []).forEach(v => addMobileSongVideoRow(v));
     }
@@ -833,8 +852,8 @@ function handleMobileEditSongSubmit(e) {
   const no = document.getElementById('mEditSongNo').value;
   const title = document.getElementById('mEditSongTitle').value;
   const composer = document.getElementById('mEditSongComposer').value;
-  const conductor = document.getElementById('mEditSongConductor').value.replace(/\s*先生/g, '');
-  const points = document.getElementById('mEditSongPoints').value;
+  const conductor = cleanSensei(document.getElementById('mEditSongConductor').value);
+  const points = cleanSensei(document.getElementById('mEditSongPoints').value);
 
   const videos = [];
   document.querySelectorAll('#mSongVideosContainer .m-slot-item').forEach(row => {
@@ -892,7 +911,7 @@ function shareBulkToLine() {
 
   let text = `🎵【吹奏楽 一括練習連絡】\n🗓️ 期間: ${startStr} ～ ${endStr}\n------------------\n`;
   selectedPractices.forEach((p, idx) => {
-    text += `\n【${idx + 1}】${p.date} (${p.category})\n📌 ${p.title}\n📍 ${p.locationName || '未定'}\n👨‍🏫 指揮: ${p.conductors || '未定'}\n`;
+    text += `\n【${idx + 1}】${p.date} (${p.category})\n📌 ${cleanSensei(p.title)}\n📍 ${p.locationName || '未定'}\n👨‍🏫 指揮: ${cleanSensei(p.conductors) || '未定'}\n`;
   });
   text += `\n📱 アプリ:\n${window.location.href}`;
 
@@ -906,7 +925,7 @@ function copyBulkLineTextToClipboard() {
 
   let text = `🎵【吹奏楽 一括練習連絡】\n🗓️ 期間: ${startStr} ～ ${endStr}\n------------------\n`;
   selectedPractices.forEach((p, idx) => {
-    text += `\n【${idx + 1}】${p.date} (${p.category})\n📌 ${p.title}\n📍 ${p.locationName || '未定'}\n👨‍🏫 指揮: ${p.conductors || '未定'}\n`;
+    text += `\n【${idx + 1}】${p.date} (${p.category})\n📌 ${cleanSensei(p.title)}\n📍 ${p.locationName || '未定'}\n👨‍🏫 指揮: ${cleanSensei(p.conductors) || '未定'}\n`;
   });
 
   navigator.clipboard.writeText(text).then(() => alert('一括テキストをコピーしました！'));
