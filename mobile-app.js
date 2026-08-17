@@ -96,7 +96,7 @@ function promptAdminLogin() {
       renderMobile();
     }
   } else {
-    const code = prompt('管理者パスコードを入力してください:\n(初期パスコード: 1234)');
+    const code = prompt('管理者パスコードを入力してください:');
     if (code === '1234' || code === 'admin') {
       isAdminMode = true;
       sessionStorage.setItem('brass_band_is_admin', 'true');
@@ -624,7 +624,7 @@ function attachMobilePracticeCardEvents(container) {
     btn.addEventListener('click', (e) => {
       const id = e.currentTarget.dataset.id;
       if (!isAdminMode) {
-        const code = prompt('編集権限が必要です。\n管理者パスコードを入力してください (初期パスコード: 1234):');
+        const code = prompt('編集権限が必要です。\n管理者パスコードを入力してください:');
         if (code === '1234' || code === 'admin') {
           isAdminMode = true;
           sessionStorage.setItem('brass_band_is_admin', 'true');
@@ -644,7 +644,7 @@ function attachMobilePracticeCardEvents(container) {
       const id = e.currentTarget.dataset.id;
       const p = practices.find(item => item.id === id);
       if (!isAdminMode) {
-        const code = prompt('削除権限が必要です。\n管理者パスコードを入力してください (初期パスコード: 1234):');
+        const code = prompt('削除権限が必要です。\n管理者パスコードを入力してください:');
         if (code === '1234' || code === 'admin') {
           isAdminMode = true;
           sessionStorage.setItem('brass_band_is_admin', 'true');
