@@ -1,6 +1,6 @@
 /**
  * 吹奏楽専用カレンダー Web App メインロジック (PC版)
- * View-Only Mode (閲覧専用・デフォルト) & Admin Mode (管理者用) + Direct YouTube Launch (No iFrame Block Errors)
+ * View-Only Mode (閲覧専用・デフォルト) & Admin Mode (管理者用) + タイムスケジュール時間軸明示UI
  */
 
 import { INITIAL_PRACTICE_DATA, MASTER_REPERTOIRE } from './sample-data.js';
@@ -18,9 +18,9 @@ let highestZIndex = 5000;
 // Admin Mode defaults strictly to FALSE (閲覧専用) for all visitors
 let isAdminMode = false;
 
-// Storage Keys
-const PERMANENT_STORAGE_KEY_PRACTICES = 'brass_band_calendar_practices_v12';
-const PERMANENT_STORAGE_KEY_REPERTOIRE = 'brass_band_calendar_repertoire_v12';
+// Storage Keys (v13 for new Timeline Schema)
+const PERMANENT_STORAGE_KEY_PRACTICES = 'brass_band_calendar_practices_v13';
+const PERMANENT_STORAGE_KEY_REPERTOIRE = 'brass_band_calendar_repertoire_v13';
 
 document.addEventListener('DOMContentLoaded', () => {
   hardPurgeSenseiFromLocalStorage();
@@ -139,6 +139,9 @@ function sanitizeAllConductors(target) {
       if (item.points) item.points = clean(item.points);
       if (item.pieces) {
         item.pieces.forEach(p => { if (p.conductor) p.conductor = clean(p.conductor); });
+      }
+      if (item.timetable) {
+        item.timetable.forEach(t => { if (t.conductor) t.conductor = clean(t.conductor); });
       }
     });
   }
@@ -417,7 +420,7 @@ function renderMobileDaySheet() {
   sheetContainer.innerHTML = `
     <div class="mobile-day-sheet">
       <div style="font-size: 1rem; font-weight: 700; color: var(--color-brass-light); margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
-        <span>📅 ${targetDateStr} の練習詳細</span>
+        <span>📅 ${targetDateStr} の練習詳細 (タイムスケジュール)</span>
         <button class="btn-glass btn-sm" onclick="document.querySelectorAll('.tab-btn[data-view=\\'day\\']')[0].click()">日表示で開く ➔</button>
       </div>
       ${dayEvents.map(evt => renderPracticeCardHtml(evt)).join('')}
@@ -677,6 +680,96 @@ function handleDeleteSong() {
   }
 }
 
+/**
+ * タイムスケジュール時間軸明示型 UI レンダラー
+ */
+function renderTimelineHtml(timetable = [], defaultConductors = '') {
+  if (!timetable || timetable.length === 0) return '';
+
+  const slotsHtml = timetable.map((slot) => {
+    const assignedSongs = (slot.pieceIds || []).map(songId => repertoire.find(s => s.id === songId)).filter(Boolean);
+    const customPieceText = slot.customPiece ? slot.customPiece.replace(/\s*先生/g, '') : '';
+    const slotConductor = (slot.conductor || defaultConductors || '').replace(/\s*先生/g, '').trim();
+
+    const songChipsHtml = [];
+    assignedSongs.forEach(song => {
+      const vList = song.videos || [];
+      const ytUrl = slot.youtubeUrl || (vList.length > 0 ? vList[0].url : `https://www.youtube.com/results?search_query=${encodeURIComponent(song.title + ' 吹奏楽')}`);
+      songChipsHtml.push(`
+        <div class="timeline-song-chip">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span style="font-weight: 800; color: var(--color-brass-light);">🎼 ${escapeHtml(song.title)}</span>
+            <span style="font-size: 0.75rem; color: var(--text-muted);">(${escapeHtml(song.section)})</span>
+          </div>
+          <a href="${escapeHtml(ytUrl)}" target="_blank" rel="noopener noreferrer" class="btn-glass btn-sm btn-yt-highlight" style="padding: 3px 8px; font-size: 0.75rem; text-decoration: none;">
+            🎬 YouTube再生 ↗
+          </a>
+        </div>
+      `);
+    });
+
+    if (customPieceText) {
+      const ytUrl = slot.youtubeUrl || `https://www.youtube.com/results?search_query=${encodeURIComponent(customPieceText + ' 吹奏楽')}`;
+      songChipsHtml.push(`
+        <div class="timeline-song-chip">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span style="font-weight: 800; color: #6ee7b7;">🎼 ${escapeHtml(customPieceText)}</span>
+            <span style="font-size: 0.72rem; color: var(--text-muted); background: rgba(16,185,129,0.2); padding: 1px 5px; border-radius: 3px;">自由入力</span>
+          </div>
+          <a href="${escapeHtml(ytUrl)}" target="_blank" rel="noopener noreferrer" class="btn-glass btn-sm btn-yt-highlight" style="padding: 3px 8px; font-size: 0.75rem; text-decoration: none;">
+            🎬 YouTube再生 ↗
+          </a>
+        </div>
+      `);
+    }
+
+    // メッセージ: 記入がある場合のみ表示
+    const slotMsg = (slot.message || slot.details || '').trim();
+    const messageHtml = slotMsg ? `
+      <div class="timeline-message-box">
+        <span>💬 <strong>メッセージ:</strong> ${escapeHtml(slotMsg)}</span>
+      </div>
+    ` : '';
+
+    const slotCategory = slot.category || '合奏';
+    const startTimeStr = slot.startTime || '18:00';
+    const endTimeStr = slot.endTime || '21:00';
+
+    return `
+      <div class="timeline-slot-card">
+        <div class="timeline-slot-node node-${escapeHtml(slotCategory)}"></div>
+        <div class="timeline-slot-header">
+          <div class="timeline-time-badge">⏰ ${escapeHtml(startTimeStr)} 〜 ${escapeHtml(endTimeStr)}</div>
+          <span class="event-badge badge-${escapeHtml(slotCategory)}">${escapeHtml(slotCategory)}</span>
+          ${slotConductor ? `<span class="timeline-conductor-tag">👨‍🏫 指揮: <strong>${escapeHtml(slotConductor)}</strong></span>` : ''}
+        </div>
+
+        <div class="timeline-slot-title">${escapeHtml(slot.title || '練習セクション')}</div>
+
+        ${songChipsHtml.length > 0 ? `
+          <div class="timeline-songs-group">
+            ${songChipsHtml.join('')}
+          </div>
+        ` : ''}
+
+        ${messageHtml}
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div class="timeline-schedule-wrapper">
+      <div class="timeline-schedule-header">
+        <span>⏱️ 練習タイムスケジュール (時間軸明示)</span>
+        <span style="font-size: 0.78rem; font-weight: 500; color: var(--text-muted);">全 ${timetable.length} 枠</span>
+      </div>
+      <div class="timeline-track">
+        ${slotsHtml}
+      </div>
+    </div>
+  `;
+}
+
 function renderPracticeCardHtml(practice, showDateBadge = false) {
   const mapUrl = getGoogleMapsUrl(practice.locationName, practice.locationAddress);
 
@@ -691,7 +784,7 @@ function renderPracticeCardHtml(practice, showDateBadge = false) {
     }
     
     const videoTabsHtml = `
-      <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px;">
+      <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;">
         ${videos.map((v, idx) => `
           <a href="${escapeHtml(v.url)}" target="_blank" rel="noopener noreferrer" class="btn-glass btn-sm btn-yt-highlight" style="display: inline-flex; align-items: center; gap: 6px; text-decoration: none;">
             🎬 ${escapeHtml(v.title || `演奏動画 ${idx+1}`)} <span style="font-size: 0.72rem; opacity: 0.8;">YouTubeアプリ起動 ↗</span>
@@ -714,34 +807,7 @@ function renderPracticeCardHtml(practice, showDateBadge = false) {
     `;
   }).join('');
 
-  const timetableHtml = (practice.timetable || []).map(slot => {
-    const assignedSongs = (slot.pieceIds || []).map(songId => repertoire.find(s => s.id === songId)).filter(Boolean);
-
-    const slotSongsHtml = assignedSongs.map(song => {
-      const vList = song.videos || [];
-      const ytUrl = vList.length > 0 ? vList[0].url : `https://www.youtube.com/results?search_query=${encodeURIComponent(song.title + ' 吹奏楽')}`;
-      return `
-        <div style="display: inline-flex; align-items: center; gap: 6px; background: rgba(229,193,88,0.14); border: 1px solid var(--glass-border-gold); padding: 4px 10px; border-radius: var(--radius-sm); font-size: 0.82rem; margin-top: 4px; flex-wrap: wrap;">
-          <span>🎼 <strong>${escapeHtml(song.title)}</strong></span>
-          <a href="${escapeHtml(ytUrl)}" target="_blank" rel="noopener noreferrer" class="btn-glass btn-sm btn-yt-highlight" style="padding: 4px 10px; font-size: 0.78rem; text-decoration: none;">
-            🎬 YouTubeアプリ起動 ↗
-          </a>
-        </div>
-      `;
-    }).join(' ');
-
-    return `
-      <div class="time-slot-item">
-        <div class="time-slot-time">⏰ ${escapeHtml(slot.startTime)} - ${escapeHtml(slot.endTime)}</div>
-        <div class="event-badge badge-${slot.category || 'その他'}">${escapeHtml(slot.category || '区分')}</div>
-        <div class="time-slot-desc">
-          <strong>${escapeHtml(slot.title || '')}</strong> ${slot.details ? `<span style="color: var(--text-muted);">(${escapeHtml(slot.details)})</span>` : ''}
-          ${slotSongsHtml ? `<div style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 8px;">${slotSongsHtml}</div>` : ''}
-        </div>
-      </div>
-    `;
-  }).join('');
-
+  const timetableTimelineHtml = renderTimelineHtml(practice.timetable, practice.conductors);
   const cleanPracticeCond = (practice.conductors || '').replace(/\s*先生/g, '');
 
   return `
@@ -765,26 +831,21 @@ function renderPracticeCardHtml(practice, showDateBadge = false) {
             </a>
           </div>
         ` : ''}
-        ${cleanPracticeCond ? `<div class="meta-item">👨‍🏫 指揮: ${escapeHtml(cleanPracticeCond)}</div>` : ''}
+        ${cleanPracticeCond ? `<div class="meta-item">👨‍🏫 指揮: <strong>${escapeHtml(cleanPracticeCond)}</strong></div>` : ''}
       </div>
 
-      ${piecesHtml ? `
-        <div class="pieces-section" style="margin-top: 12px;">
-          <div class="section-title" style="font-size: 0.88rem; color: var(--color-brass-light); font-weight: 700;">🎼 練習曲 & 参考音源 (YouTube)</div>
-          ${piecesHtml}
-        </div>
-      ` : ''}
+      ${timetableTimelineHtml}
 
-      ${timetableHtml ? `
-        <div class="timetable-slots">
-          <div class="section-title" style="margin-top: 14px; font-size: 0.88rem; color: var(--color-brass-light); font-weight: 700;">⏱️ 練習時間割</div>
-          ${timetableHtml}
+      ${piecesHtml ? `
+        <div class="pieces-section" style="margin-top: 14px;">
+          <div class="section-title" style="font-size: 0.88rem; color: var(--color-brass-light); font-weight: 700;">🎼 練習予定曲目ライブラリ情報</div>
+          ${piecesHtml}
         </div>
       ` : ''}
 
       ${practice.generalNotes ? `
         <div style="margin-top: 12px; padding: 10px; background: rgba(229,193,88,0.08); border-radius: var(--radius-sm); border: 1px dashed var(--glass-border-gold); font-size: 0.82rem; color: var(--text-secondary);">
-          ℹ️ ${escapeHtml(practice.generalNotes)}
+          💬 <strong>全体連絡事項:</strong> ${escapeHtml(practice.generalNotes)}
         </div>
       ` : ''}
 
@@ -865,7 +926,7 @@ function openPracticeModal(id = null) {
     document.getElementById('practiceId').value = '';
     document.getElementById('inputDate').value = formatDate(currentDate);
     addPieceInputRow();
-    addTimetableInputRow({ startTime: '18:00', endTime: '21:00', category: '合奏', title: '夜間通常練習', details: '' });
+    addTimetableInputRow({ startTime: '18:00', endTime: '21:00', category: '合奏', title: '夜間全体合奏', conductor: '公文' });
   }
 
   openModal('practiceModal');
@@ -916,36 +977,72 @@ function addPieceInputRow(piece = {}) {
 function addTimetableInputRow(slot = {}) {
   const container = document.getElementById('timetableInputsContainer');
   const row = document.createElement('div');
-  row.className = 'piece-input-row';
+  row.className = 'timetable-input-row';
 
   const assignedPieceIds = slot.pieceIds || [];
   const songCheckboxesHtml = repertoire.map(song => `
     <label class="song-checkbox-item">
       <input type="checkbox" class="slot-piece-checkbox" value="${song.id}" ${assignedPieceIds.includes(song.id) ? 'checked' : ''}>
-      <span>${escapeHtml(song.title)}</span>
+      <span>[${song.section}] ${escapeHtml(song.title)} (${song.conductor})</span>
     </label>
   `).join('');
 
   row.innerHTML = `
     <button type="button" class="btn-remove-piece" title="削除">&times;</button>
-    <div class="form-row">
+    
+    <div class="form-row" style="margin-bottom: 8px;">
       <div class="form-group">
-        <label>開始時間</label>
-        <input type="time" class="form-control slot-start-input" value="${slot.startTime || '18:00'}">
+        <label>⏰ 開始時間 *</label>
+        <input type="time" class="form-control slot-start-input" value="${slot.startTime || '18:00'}" required>
       </div>
       <div class="form-group">
-        <label>終了時間</label>
-        <input type="time" class="form-control slot-end-input" value="${slot.endTime || '21:00'}">
+        <label>⏰ 終了時間 *</label>
+        <input type="time" class="form-control slot-end-input" value="${slot.endTime || '21:00'}" required>
       </div>
     </div>
-    <div class="form-group">
-      <label>時間枠タイトル</label>
-      <input type="text" class="form-control slot-title-input" value="${escapeHtml(slot.title || '')}">
+
+    <div class="form-row" style="margin-bottom: 8px;">
+      <div class="form-group">
+        <label>🏷️ 練習区分 *</label>
+        <select class="form-control slot-category-select">
+          <option value="合奏" ${(slot.category || '合奏') === '合奏' ? 'selected' : ''}>合奏 (全体合奏)</option>
+          <option value="パート練習" ${slot.category === 'パート練習' ? 'selected' : ''}>パート/セクション練習</option>
+          <option value="個人練習" ${slot.category === '個人練習' ? 'selected' : ''}>個人練習</option>
+          <option value="本番" ${slot.category === '本番' ? 'selected' : ''}>本番・演奏会</option>
+          <option value="その他" ${slot.category === 'その他' ? 'selected' : ''}>その他・休憩</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>👨‍🏫 指揮者 (公文 / 下川 / 自由入力)</label>
+        <input type="text" class="form-control slot-conductor-input" value="${escapeHtml((slot.conductor || '').replace(/\s*先生/g, ''))}" placeholder="例: 公文 / 下川">
+      </div>
     </div>
-    <div class="form-group" style="margin-top: 6px;">
-      <label>🎼 この時間枠で合わせる曲目 (複数可)</label>
+
+    <div class="form-group" style="margin-bottom: 8px;">
+      <label>✏️ 時間枠タイトル *</label>
+      <input type="text" class="form-control slot-title-input" value="${escapeHtml(slot.title || '')}" placeholder="例: 全体合奏 (第1部通し) / セクション練習" required>
+    </div>
+
+    <div class="form-group" style="margin-bottom: 8px;">
+      <label>🎼 練習曲目 (ライブラリから選択)</label>
       <div class="song-checkboxes-grid">
         ${songCheckboxesHtml}
+      </div>
+    </div>
+
+    <div class="form-group" style="margin-bottom: 8px;">
+      <label>✏️ 練習曲目 (自由入力・補足曲名)</label>
+      <input type="text" class="form-control slot-custom-piece-input" value="${escapeHtml(slot.customPiece || '')}" placeholder="例: 冒頭ファンファーレ、アンコール案、基礎合奏トレモロ">
+    </div>
+
+    <div class="form-row" style="margin-bottom: 8px;">
+      <div class="form-group">
+        <label>🎬 YouTube動画URL (任意)</label>
+        <input type="text" class="form-control slot-yt-input" value="${escapeHtml(slot.youtubeUrl || '')}" placeholder="https://www.youtube.com/...">
+      </div>
+      <div class="form-group">
+        <label>💬 メッセージ (記入がある場合のみ表示)</label>
+        <input type="text" class="form-control slot-message-input" value="${escapeHtml(slot.message || slot.details || '')}" placeholder="例: 16:00開始にご注意ください、譜面台持参">
       </div>
     </div>
   `;
@@ -977,16 +1074,29 @@ function handlePracticeSubmit(e) {
   });
 
   const timetable = [];
-  document.querySelectorAll('#timetableInputsContainer .piece-input-row').forEach(row => {
+  document.querySelectorAll('#timetableInputsContainer .timetable-input-row').forEach(row => {
     const sTitle = row.querySelector('.slot-title-input').value.trim();
-    if (sTitle) {
-      const checkedIds = Array.from(row.querySelectorAll('.slot-piece-checkbox:checked')).map(cb => cb.value);
+    const startTime = row.querySelector('.slot-start-input').value;
+    const endTime = row.querySelector('.slot-end-input').value;
+    const slotCategory = row.querySelector('.slot-category-select').value;
+    const conductor = row.querySelector('.slot-conductor-input').value.trim().replace(/\s*先生/g, '');
+    const customPiece = row.querySelector('.slot-custom-piece-input').value.trim();
+    const youtubeUrl = row.querySelector('.slot-yt-input').value.trim();
+    const message = row.querySelector('.slot-message-input').value.trim();
+
+    const checkedIds = Array.from(row.querySelectorAll('.slot-piece-checkbox:checked')).map(cb => cb.value);
+
+    if (sTitle || startTime || checkedIds.length > 0 || customPiece) {
       timetable.push({
-        startTime: row.querySelector('.slot-start-input').value,
-        endTime: row.querySelector('.slot-end-input').value,
-        category: '合奏',
-        title: sTitle,
-        pieceIds: checkedIds
+        startTime: startTime || '18:00',
+        endTime: endTime || '21:00',
+        category: slotCategory || '合奏',
+        title: sTitle || '練習セクション',
+        conductor: conductor,
+        pieceIds: checkedIds,
+        customPiece: customPiece,
+        youtubeUrl: youtubeUrl,
+        message: message
       });
     }
   });

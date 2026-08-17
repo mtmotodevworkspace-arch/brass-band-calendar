@@ -312,8 +312,134 @@ html, body.mobile-body {
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid var(--glass-border);
   border-radius: 8px;
-  padding: 8px 10px;
+  padding: 10px;
+  margin-top: 8px;
+}
+
+/* Visual Vertical Timeline System (Mobile) */
+.timeline-schedule-wrapper {
+  margin-top: 14px;
+  position: relative;
+}
+
+.timeline-schedule-header {
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: var(--color-brass-light);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--glass-border-gold);
+}
+
+.timeline-track {
+  position: relative;
+  padding-left: 22px;
+}
+
+.timeline-track::before {
+  content: '';
+  position: absolute;
+  top: 6px;
+  bottom: 10px;
+  left: 7px;
+  width: 3px;
+  background: linear-gradient(180deg, #e5c158 0%, #3b82f6 50%, #10b981 100%);
+  border-radius: 3px;
+  box-shadow: 0 0 6px rgba(229, 193, 88, 0.4);
+}
+
+.timeline-slot-card {
+  position: relative;
+  background: rgba(16, 23, 38, 0.75);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.timeline-slot-node {
+  position: absolute;
+  top: 14px;
+  left: -20px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--bg-dark);
+  border: 3px solid var(--color-brass);
+  box-shadow: 0 0 6px var(--color-brass);
+  z-index: 2;
+}
+
+.timeline-slot-node.node-個人練習 { border-color: #3b82f6; box-shadow: 0 0 6px #3b82f6; }
+.timeline-slot-node.node-パート練習 { border-color: #10b981; box-shadow: 0 0 6px #10b981; }
+.timeline-slot-node.node-合奏 { border-color: #e5c158; box-shadow: 0 0 6px #e5c158; }
+.timeline-slot-node.node-本番 { border-color: #f43f5e; box-shadow: 0 0 6px #f43f5e; }
+
+.timeline-slot-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.timeline-time-badge {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: var(--color-brass-light);
+  background: rgba(229, 193, 88, 0.15);
+  border: 1px solid var(--glass-border-gold);
+  padding: 3px 8px;
+  border-radius: 16px;
+}
+
+.timeline-conductor-tag {
+  font-size: 0.75rem;
+  color: #fef08a;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.timeline-slot-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+
+.timeline-songs-group {
   margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.timeline-song-chip {
+  background: rgba(229, 193, 88, 0.08);
+  border: 1px solid var(--glass-border-gold);
+  border-radius: 8px;
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.timeline-message-box {
+  margin-top: 8px;
+  padding: 8px 10px;
+  background: rgba(59, 130, 246, 0.12);
+  border-left: 3px solid #3b82f6;
+  border-radius: 4px;
+  font-size: 0.78rem;
+  color: #bfdbfe;
 }
 
 /* Buttons System */

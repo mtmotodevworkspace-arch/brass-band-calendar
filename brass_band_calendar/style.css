@@ -364,15 +364,15 @@ header.app-header {
 
 .event-badge {
   font-size: 0.68rem;
-  padding: 2px 4px;
+  padding: 2px 6px;
   border-radius: 4px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   font-weight: 600;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 2px;
+  gap: 3px;
 }
 
 .badge-合奏 { background: var(--cat-ensemble-bg); color: var(--cat-ensemble); border: 1px solid rgba(229, 193, 88, 0.4); }
@@ -398,15 +398,131 @@ header.app-header {
   border-radius: var(--radius-lg);
 }
 
-.piece-card {
-  background: rgba(0, 0, 0, 0.25);
+/* ==========================================================================
+   Visual Vertical Timeline UI (時間軸明示型タイムスケジュール)
+   ========================================================================== */
+.timeline-schedule-wrapper {
+  margin-top: 16px;
+  position: relative;
+}
+
+.timeline-schedule-header {
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: var(--color-brass-light);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 14px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--glass-border-gold);
+}
+
+.timeline-track {
+  position: relative;
+  padding-left: 24px;
+}
+
+/* Vertical Timeline Axis Line */
+.timeline-track::before {
+  content: '';
+  position: absolute;
+  top: 8px;
+  bottom: 12px;
+  left: 8px;
+  width: 3px;
+  background: linear-gradient(180deg, #e5c158 0%, #3b82f6 50%, #10b981 100%);
+  border-radius: 3px;
+  box-shadow: 0 0 8px rgba(229, 193, 88, 0.4);
+}
+
+/* Timeline Slot Item Card */
+.timeline-slot-card {
+  position: relative;
+  background: rgba(15, 23, 42, 0.65);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-md);
   padding: 12px 14px;
-  margin-top: 10px;
+  margin-bottom: 14px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  transition: all 0.2s ease;
 }
 
-.piece-header {
+.timeline-slot-card:hover {
+  border-color: var(--glass-border-gold);
+  background: rgba(20, 30, 52, 0.75);
+}
+
+/* Node (Dot) on the left axis line */
+.timeline-slot-node {
+  position: absolute;
+  top: 16px;
+  left: -21px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--bg-dark);
+  border: 3px solid var(--color-brass);
+  box-shadow: 0 0 8px var(--color-brass);
+  z-index: 2;
+}
+
+.timeline-slot-node.node-個人練習 { border-color: #3b82f6; box-shadow: 0 0 8px #3b82f6; }
+.timeline-slot-node.node-パート練習 { border-color: #10b981; box-shadow: 0 0 8px #10b981; }
+.timeline-slot-node.node-合奏 { border-color: #e5c158; box-shadow: 0 0 8px #e5c158; }
+.timeline-slot-node.node-本番 { border-color: #f43f5e; box-shadow: 0 0 8px #f43f5e; }
+
+.timeline-slot-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.timeline-time-badge {
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: var(--color-brass-light);
+  background: rgba(229, 193, 88, 0.15);
+  border: 1px solid var(--glass-border-gold);
+  padding: 3px 10px;
+  border-radius: 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.timeline-conductor-tag {
+  font-size: 0.78rem;
+  color: #fef08a;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.timeline-slot-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+
+.timeline-songs-group {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.timeline-song-chip {
+  background: rgba(229, 193, 88, 0.08);
+  border: 1px solid var(--glass-border-gold);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -414,100 +530,26 @@ header.app-header {
   gap: 6px;
 }
 
-.piece-title {
-  font-weight: 700;
-  font-size: 0.98rem;
-  color: var(--color-brass-light);
-}
-
-.piece-conductor {
-  font-size: 0.8rem;
-  color: var(--text-gold);
-  background: rgba(229,193,88,0.12);
-  padding: 2px 8px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--glass-border-gold);
-}
-
-.piece-points {
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-  margin-top: 6px;
-  line-height: 1.5;
-  white-space: pre-wrap;
-}
-
-.timetable-slots {
-  margin-top: 14px;
-}
-
-.time-slot-item {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 10px 12px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-md);
+.timeline-message-box {
   margin-top: 8px;
-}
-
-.time-slot-time {
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: var(--color-brass-light);
-}
-
-/* Repertoire Library Specific Styles */
-.repertoire-card {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-md);
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  position: relative;
-  margin-bottom: 12px;
-}
-
-.section-tag {
-  font-size: 0.75rem;
-  font-weight: 700;
-  padding: 2px 8px;
+  padding: 8px 10px;
+  background: rgba(59, 130, 246, 0.12);
+  border-left: 3px solid #3b82f6;
   border-radius: 4px;
-  display: inline-block;
-}
-
-.section-第1部 { background: rgba(59, 130, 246, 0.2); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.4); }
-.section-第2部 { background: rgba(229, 193, 88, 0.2); color: #ffe79a; border: 1px solid rgba(229, 193, 88, 0.4); }
-.section-Enc { background: rgba(244, 63, 94, 0.2); color: #fda4af; border: 1px solid rgba(244, 63, 94, 0.4); }
-
-.video-tabs-container {
+  font-size: 0.82rem;
+  color: #bfdbfe;
   display: flex;
+  align-items: flex-start;
   gap: 6px;
+}
+
+.timetable-input-row {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-md);
+  padding: 14px;
   margin-bottom: 12px;
-  overflow-x: auto;
-  padding-bottom: 4px;
-}
-
-.video-tab-btn {
-  background: rgba(0, 0, 0, 0.4);
-  border: 1px solid var(--glass-border);
-  color: var(--text-secondary);
-  padding: 8px 14px;
-  border-radius: var(--radius-sm);
-  font-size: 0.85rem;
-  cursor: pointer;
-  white-space: nowrap;
-  min-height: 40px;
-}
-
-.video-tab-btn.active {
-  background: #ff4e4e;
-  color: #fff;
-  border-color: #ff4e4e;
-  font-weight: 700;
+  position: relative;
 }
 
 /* Modals & Layer Management */
@@ -699,7 +741,6 @@ textarea.form-control {
     padding: 10px 8px 50px 8px;
   }
 
-  /* Vertical Portrait Header Styling */
   header.app-header {
     flex-direction: column;
     align-items: stretch;
@@ -730,27 +771,6 @@ textarea.form-control {
     width: 100%;
   }
 
-  .header-actions #btnAddPractice {
-    width: 100%;
-    font-size: 0.92rem;
-    padding: 10px 14px;
-  }
-
-  .header-sub-actions {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 6px;
-    width: 100%;
-  }
-
-  .header-sub-actions .btn-glass {
-    width: 100%;
-    font-size: 0.75rem;
-    padding: 8px 4px;
-    min-height: 38px;
-  }
-
-  /* Portrait Controls Bar */
   .controls-bar {
     padding: 10px 10px;
     gap: 10px;
@@ -781,7 +801,6 @@ textarea.form-control {
     border-radius: 6px;
   }
 
-  /* Month Grid in Portrait */
   .calendar-month-grid {
     gap: 2px;
   }
@@ -798,35 +817,5 @@ textarea.form-control {
 
   .day-number {
     font-size: 0.76rem;
-  }
-
-  .event-badge {
-    font-size: 0.62rem;
-    padding: 2px 3px;
-  }
-
-  /* Vertical Form Rows */
-  .form-row {
-    grid-template-columns: 1fr;
-  }
-
-  /* Vertical Prominent YouTube Buttons for Portrait Thumbs */
-  .btn-play-card-video, .btn-play-slot-video, .btn-play-rep-video {
-    width: 100% !important;
-    justify-content: center !important;
-    padding: 10px 12px !important;
-    font-size: 0.88rem !important;
-    min-height: 42px !important;
-    margin-top: 4px !important;
-  }
-
-  .modal-backdrop {
-    padding: 8px;
-  }
-
-  .modal-content {
-    padding: 16px 12px;
-    max-height: 94vh;
-    border-radius: var(--radius-md);
   }
 }

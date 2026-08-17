@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   
-  <link rel="stylesheet" href="mobile-style.css?v=20260812_v11">
+  <link rel="stylesheet" href="mobile-style.css?v=20260817_v13">
 </head>
 <body class="mobile-body">
   <!-- Mobile Ambient Glow background -->
@@ -143,7 +143,7 @@
           </div>
 
           <div class="m-form-group">
-            <label>🏷️ 区分 *</label>
+            <label>🏷️ 全体区分 *</label>
             <select id="mInputCategory" class="m-input" required>
               <option value="合奏">合奏</option>
               <option value="パート練習">パート練習</option>
@@ -154,7 +154,7 @@
           </div>
 
           <div class="m-form-group">
-            <label>✏️ タイトル *</label>
+            <label>✏️ 練習タイトル *</label>
             <input type="text" id="mInputTitle" class="m-input" placeholder="例: 通常練習 (18:00〜21:00)" required>
           </div>
 
@@ -164,30 +164,30 @@
           </div>
 
           <div class="m-form-group">
-            <label>👨‍🏫 指揮者 (公文 / 下川)</label>
+            <label>👨‍🏫 当日指揮者 (公文 / 下川)</label>
             <input type="text" id="mInputConductors" class="m-input" placeholder="例: 公文 / 下川">
           </div>
 
-          <!-- Practice Pieces list -->
+          <!-- Practice Timetable list (時間軸明示対応) -->
           <div class="m-form-group">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-              <label>🎼 当日の練習曲</label>
-              <button type="button" id="mBtnAddPieceRow" class="m-btn-sm">+ 曲追加</button>
-            </div>
-            <div id="mPiecesContainer"></div>
-          </div>
-
-          <!-- Practice Timetable list -->
-          <div class="m-form-group">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-              <label>⏱️ 当日の時間割 (曲名割当可)</label>
+              <label>⏱️ タイムスケジュール枠の追加・編集</label>
               <button type="button" id="mBtnAddTimetableRow" class="m-btn-sm">+ 時間枠追加</button>
             </div>
             <div id="mTimetableContainer"></div>
           </div>
 
+          <!-- Practice Pieces list -->
           <div class="m-form-group">
-            <label>📝 連絡事項・備考</label>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+              <label>🎼 練習予定曲目ライブラリ情報</label>
+              <button type="button" id="mBtnAddPieceRow" class="m-btn-sm">+ 曲追加</button>
+            </div>
+            <div id="mPiecesContainer"></div>
+          </div>
+
+          <div class="m-form-group">
+            <label>💬 全体連絡事項・備考</label>
             <textarea id="mInputNotes" class="m-input" placeholder="連絡事項..."></textarea>
           </div>
 
@@ -269,7 +269,7 @@
       <div class="m-sheet-content">
         <div class="m-sheet-handle"></div>
         <div class="m-sheet-header">
-          <h3>🎬 演奏動画 (YouTube)</h3>
+          <h3>ℹ️ 練習詳細 & タイムスケジュール</h3>
           <button class="m-close-btn" data-close="mDetailModal">&times;</button>
         </div>
         <div id="mDetailModalBody"></div>
@@ -329,7 +329,7 @@
 
   </div>
 
-  <!-- Mobile JavaScript Logic with Cache-Buster v11 -->
-  <script type="module" src="mobile-app.js?v=20260812_v11"></script>
+  <!-- Mobile JavaScript Logic with Cache-Buster v13 -->
+  <script type="module" src="mobile-app.js?v=20260817_v13"></script>
 </body>
 </html>
