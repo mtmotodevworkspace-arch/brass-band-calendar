@@ -261,6 +261,11 @@ function setupEventListeners() {
   });
 
   document.getElementById('btnBackup').addEventListener('click', () => openModal('backupModal'));
+  document.getElementById('btnSyncToMobile').addEventListener('click', openSyncModal);
+  document.getElementById('btnCopySyncUrl').addEventListener('click', () => {
+    const url = buildFullSyncUrl();
+    navigator.clipboard.writeText(url).then(() => alert('スマホ同期URLをコピーしました！LINE等に送信してタップすると即座に更新されます。'));
+  });
   document.getElementById('btnRepertoireLibrary').addEventListener('click', openRepertoireModal);
   document.getElementById('btnBulkExport').addEventListener('click', openBulkExportModal);
   document.getElementById('btnControlsBulkExport').addEventListener('click', openBulkExportModal);
@@ -1294,6 +1299,38 @@ function openExportModal(id) {
   openModal('exportModal');
 }
 
+function openSyncModal() {
+  const syncUrl = buildFullSyncUrl();
+  const linkOpen = document.getElementById('linkOpenMobileSync');
+  if (linkOpen) linkOpen.href = syncUrl;
+
+  const qrContainer = document.getElementById('syncQrCodeContainer');
+  if (qrContainer) {
+    const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(syncUrl)}`;
+    qrContainer.innerHTML = `<img src="${qrApiUrl}" alt="スマホ同期QRコード" style="width: 220px; height: 220px; border-radius: 8px; border: 2px solid var(--color-brass-light);">`;
+  }
+  openModal('syncModal');
+}
+
+function buildFullSyncUrl() {
+  try {
+    const payload = {
+      practices: practices,
+      repertoire: repertoire,
+      syncedAt: new Date().toISOString()
+    };
+    const jsonStr = JSON.stringify(payload);
+    const encoded = btoa(unescape(encodeURIComponent(jsonStr)));
+    const origin = window.location.origin;
+    let path = window.location.pathname;
+    if (path.endsWith('index.html')) path = path.substring(0, path.length - 'index.html'.length);
+    if (!path.endsWith('/')) path += '/';
+    return `${origin}${path}mobile.html?syncAll=${encodeURIComponent(encoded)}`;
+  } catch (e) {
+    return window.location.href;
+  }
+}
+
 function buildPracticeShareUrl(practice) {
   try {
     const jsonStr = JSON.stringify(practice);
@@ -1311,6 +1348,23 @@ function buildPracticeShareUrl(practice) {
 function checkUrlDeepLinkImport() {
   try {
     const urlParams = new URLSearchParams(window.location.search);
+
+    const syncAll = urlParams.get('syncAll');
+    if (syncAll) {
+      const jsonStr = decodeURIComponent(escape(atob(decodeURIComponent(syncAll))));
+      const payload = JSON.parse(jsonStr);
+      if (payload && Array.isArray(payload.practices)) {
+        practices = payload.practices;
+        if (Array.isArray(payload.repertoire)) repertoire = payload.repertoire;
+        sanitizeAllConductors(practices);
+        sanitizeAllConductors(repertoire);
+        saveToStorage();
+        alert('✅ PCで編集した最新データ（2026-08-23: 音出し〜合奏準備 / 21世紀のスキッツォイドマン等）に完全更新しました！');
+        window.history.replaceState({}, document.title, window.location.pathname);
+        return;
+      }
+    }
+
     const pdata = urlParams.get('pdata');
     if (pdata) {
       const jsonStr = decodeURIComponent(escape(atob(decodeURIComponent(pdata))));
