@@ -4,6 +4,13 @@
  */
 
 import { INITIAL_PRACTICE_DATA, MASTER_REPERTOIRE } from './sample-data.js';
+import { 
+  initFirebaseSync, 
+  syncPracticeToCloud, 
+  deletePracticeFromCloud, 
+  syncRepertoireToCloud, 
+  deleteRepertoireFromCloud 
+} from './firebase-sync.js';
 
 // Global State
 let practices = [];
@@ -27,6 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initStorage();
   checkAdminMode();
   checkUrlDeepLinkImport();
+  setupFirebaseCloudSync();
   setupEventListeners();
   setupZIndexLayerManagement();
   render();
@@ -148,6 +156,33 @@ function initStorage() {
   sanitizeAllConductors(practices);
   sanitizeAllConductors(repertoire);
   saveToStorage();
+}
+
+function setupFirebaseCloudSync() {
+  initFirebaseSync(
+    (cloudPractices) => {
+      if (cloudPractices && cloudPractices.length > 0) {
+        practices = cloudPractices;
+        sanitizeAllConductors(practices);
+        saveToStorage();
+        render();
+      }
+    },
+    (cloudRepertoire) => {
+      if (cloudRepertoire && cloudRepertoire.length > 0) {
+        repertoire = cloudRepertoire;
+        sanitizeAllConductors(repertoire);
+        saveToStorage();
+        render();
+      }
+    },
+    (isOnline, statusText) => {
+      const btnAdmin = document.getElementById('btnAdminToggle');
+      if (btnAdmin) {
+        btnAdmin.title = statusText;
+      }
+    }
+  );
 }
 
 function sanitizeAllConductors(target) {
@@ -683,6 +718,7 @@ function handleEditSongSubmit(e) {
   else repertoire.push(updatedSong);
 
   saveToStorage();
+  syncRepertoireToCloud(updatedSong);
   closeModal('editSongModal');
   render();
 }
@@ -694,6 +730,7 @@ function handleDeleteSong() {
   if (song && confirm(`曲目「${song.title}」を削除しますか？`)) {
     repertoire = repertoire.filter(s => s.id !== id);
     saveToStorage();
+    deleteRepertoireFromCloud(id);
     closeModal('editSongModal');
     render();
   }
@@ -925,6 +962,7 @@ function attachPracticeCardEvents(container) {
       if (confirm(`練習予定「${p ? p.title : ''}」を削除してもよろしいですか？`)) {
         practices = practices.filter(item => item.id !== id);
         saveToStorage();
+        deletePracticeFromCloud(id);
         closeModal('detailModal');
         render();
       }
@@ -1150,6 +1188,7 @@ function handlePracticeSubmit(e) {
   else practices.push(newPractice);
 
   saveToStorage();
+  syncPracticeToCloud(newPractice);
   closeModal('practiceModal');
   render();
 }
