@@ -30,8 +30,37 @@ let isAdminMode = false;
 const PERMANENT_STORAGE_KEY_PRACTICES = 'brass_band_calendar_practices_v20';
 const PERMANENT_STORAGE_KEY_REPERTOIRE = 'brass_band_calendar_repertoire_v20';
 
+/* 過去のバージョンキー(_v14〜_v19)からユーザー様が編集された楽曲リスト・練習データを全自動検出して復元 */
+function recoverLegacyUserEdits() {
+  try {
+    let foundR = null;
+    let foundP = null;
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.includes('repertoire')) {
+        const raw = localStorage.getItem(k);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed) && parsed.length > 0) foundR = parsed;
+        }
+      }
+      if (k && k.includes('practice')) {
+        const raw = localStorage.getItem(k);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed) && parsed.length > 0) foundP = parsed;
+        }
+      }
+    }
+    if (foundR) repertoire = foundR;
+    if (foundP) practices = foundP;
+  } catch (e) {
+    console.warn('Legacy recovery notice:', e);
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
-  hardPurgeSenseiFromLocalStorage();
+  recoverLegacyUserEdits();
   initStorage();
   fetchCloudDataOnLoad();
   checkAdminMode();
@@ -44,19 +73,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function fetchCloudDataOnLoad() {
   try {
+    const hasLocalP = localStorage.getItem(PERMANENT_STORAGE_KEY_PRACTICES);
+    const hasLocalR = localStorage.getItem(PERMANENT_STORAGE_KEY_REPERTOIRE);
+
+    // ローカルストレージにユーザーの編集済みデータが存在する場合、勝手に上書き・初期化しないよう保護
+    if (hasLocalP && hasLocalR) {
+      return;
+    }
+
     const res = await fetch('data.json?t=' + Date.now());
     if (res.ok) {
       const cloudData = await res.json();
-      if (cloudData && Array.isArray(cloudData.practices) && cloudData.practices.length > 0) {
+      if (!hasLocalP && cloudData && Array.isArray(cloudData.practices) && cloudData.practices.length > 0) {
         practices = cloudData.practices;
-        if (Array.isArray(cloudData.repertoire) && cloudData.repertoire.length > 0) {
-          repertoire = cloudData.repertoire;
-        }
-        sanitizeAllConductors(practices);
-        sanitizeAllConductors(repertoire);
-        saveToStorage();
-        render();
       }
+      if (!hasLocalR && cloudData && Array.isArray(cloudData.repertoire) && cloudData.repertoire.length > 0) {
+        repertoire = cloudData.repertoire;
+      }
+      sanitizeAllConductors(practices);
+      sanitizeAllConductors(repertoire);
+      saveToStorage();
+      render();
     }
   } catch (e) {
     console.log('Cloud data.json load notice:', e);

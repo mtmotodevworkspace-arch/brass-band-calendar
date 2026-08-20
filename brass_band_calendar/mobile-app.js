@@ -28,8 +28,37 @@ let selectedDateForMobileSheet = null;
 // Admin Mode defaults strictly to FALSE (閲覧専用) for all visitors
 let isAdminMode = false;
 
+/* 過去のバージョンキー(_v14〜_v19)からユーザー様が編集された楽曲リスト・練習データを全自動検出して復元 */
+function recoverLegacyUserEdits() {
+  try {
+    let foundR = null;
+    let foundP = null;
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.includes('repertoire')) {
+        const raw = localStorage.getItem(k);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed) && parsed.length > 0) foundR = parsed;
+        }
+      }
+      if (k && k.includes('practice')) {
+        const raw = localStorage.getItem(k);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed) && parsed.length > 0) foundP = parsed;
+        }
+      }
+    }
+    if (foundR) repertoire = foundR;
+    if (foundP) practices = foundP;
+  } catch (e) {
+    console.warn('Legacy recovery notice:', e);
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
-  hardPurgeSenseiFromLocalStorage();
+  recoverLegacyUserEdits();
   initStorage();
   fetchCloudDataOnLoad();
   checkAdminMode();
