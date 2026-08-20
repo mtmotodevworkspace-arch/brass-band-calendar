@@ -293,36 +293,47 @@ export const INITIAL_PRACTICE_DATA = [
     category: "合奏",
     locationName: "日章福祉交流センター 会議室①",
     locationAddress: "高知県南国市日章",
-    conductors: "公文 / 下川",
+    conductors: "公文",
     pieces: [
-      { title: "リトル・マーメイド・メドレー", conductor: "下川" },
-      { title: "ルパン三世のテーマ", conductor: "公文" }
+      { title: "21世紀のスキッツォイドマン", conductor: "公文" },
+      { title: "音出し〜合奏準備", conductor: "各自" }
     ],
     timetable: [
       {
         startTime: "18:00",
+        endTime: "18:45",
+        category: "パート練習",
+        title: "音出し〜合奏準備",
+        conductor: "-",
+        pieceIds: [],
+        customPiece: "音出し〜合奏準備",
+        youtubeUrl: "",
+        message: "クラシック・音音曲を中心にできるかぎりセクションで合わせてください"
+      },
+      {
+        startTime: "18:45",
         endTime: "19:30",
         category: "合奏",
-        title: "ディズニーメドレー合奏",
-        conductor: "下川",
-        pieceIds: ["rep-3"],
-        customPiece: "",
-        youtubeUrl: "https://www.youtube.com/results?search_query=%E3%83%AA%E3%83%88%E3%83%AB%E3%83%9E%E3%83%BC%E3%83%A1%E3%82%A4%E3%83%89%E3%83%A1%E3%83%89%E3%83%AC%E3%83%BC+%E5%90%B9%E5%A5%8F%E6%A5%BD",
-        message: "星出尚志アレンジのディズニー世界観を歌い込みます。"
+        title: "21世紀のスキッツォイドマン",
+        conductor: "公文",
+        pieceIds: ["rep-5"],
+        customPiece: "21世紀のスキッツォイドマン",
+        youtubeUrl: "https://www.youtube.com/results?search_query=21%E4%B8%96%E7%B4%80%E3%81%AE%E3%82%B9%E3%82%AD%E3%83%83%E3%83%84%E3%82%A9%E3%82%A4%E3%83%89%E3%83%9E%E3%83%B3+%E5%90%B9%E5%A5%8F%E6%A5%BD",
+        message: ""
       },
       {
         startTime: "19:30",
         endTime: "21:00",
         category: "合奏",
-        title: "ジャズブラス合奏",
+        title: "セクションに分割・全体合奏",
         conductor: "公文",
-        pieceIds: ["rep-9"],
-        customPiece: "",
-        youtubeUrl: "",
+        pieceIds: [],
+        customPiece: "セクションに分割・全体合奏",
+        youtubeUrl: "https://www.youtube.com/results?search_query=%E5%90%B9%E5%A5%8F%E6%A5%BD",
         message: ""
       }
     ],
-    generalNotes: "18:00〜21:00"
+    generalNotes: "18:00〜21:00 日章福祉交流センター 会議室①"
   },
   {
     id: "p-20260829",

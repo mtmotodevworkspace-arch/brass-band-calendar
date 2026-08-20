@@ -25,13 +25,14 @@ let highestZIndex = 5000;
 // Admin Mode defaults strictly to FALSE (閲覧専用) for all visitors
 let isAdminMode = false;
 
-// Storage Keys (v14 for Hard Cache Invalidation)
-const PERMANENT_STORAGE_KEY_PRACTICES = 'brass_band_calendar_practices_v14';
-const PERMANENT_STORAGE_KEY_REPERTOIRE = 'brass_band_calendar_repertoire_v14';
+// Storage Keys (v20 for Instant Global Cache Purge)
+const PERMANENT_STORAGE_KEY_PRACTICES = 'brass_band_calendar_practices_v20';
+const PERMANENT_STORAGE_KEY_REPERTOIRE = 'brass_band_calendar_repertoire_v20';
 
 document.addEventListener('DOMContentLoaded', () => {
   hardPurgeSenseiFromLocalStorage();
   initStorage();
+  fetchCloudDataOnLoad();
   checkAdminMode();
   checkUrlDeepLinkImport();
   setupFirebaseCloudSync();
@@ -40,13 +41,34 @@ document.addEventListener('DOMContentLoaded', () => {
   render();
 });
 
-/* Hard Purge ALL legacy localStorage versions except v14 and any string containing "先生" */
+async function fetchCloudDataOnLoad() {
+  try {
+    const res = await fetch('data.json?t=' + Date.now());
+    if (res.ok) {
+      const cloudData = await res.json();
+      if (cloudData && Array.isArray(cloudData.practices) && cloudData.practices.length > 0) {
+        practices = cloudData.practices;
+        if (Array.isArray(cloudData.repertoire) && cloudData.repertoire.length > 0) {
+          repertoire = cloudData.repertoire;
+        }
+        sanitizeAllConductors(practices);
+        sanitizeAllConductors(repertoire);
+        saveToStorage();
+        render();
+      }
+    }
+  } catch (e) {
+    console.log('Cloud data.json load notice:', e);
+  }
+}
+
+/* Hard Purge ALL legacy localStorage versions except v20 and any string containing "先生" */
 function hardPurgeSenseiFromLocalStorage() {
   try {
     for (let i = localStorage.length - 1; i >= 0; i--) {
       const k = localStorage.key(i);
       if (k && (k.includes('brass') || k.includes('repertoire') || k.includes('practice'))) {
-        if (!k.endsWith('_v14')) {
+        if (!k.endsWith('_v20')) {
           localStorage.removeItem(k);
         } else {
           const val = localStorage.getItem(k);
@@ -56,7 +78,9 @@ function hardPurgeSenseiFromLocalStorage() {
         }
       }
     }
-  } catch (e) {}
+  } catch (e) {
+    console.warn('LocalStorage purge warning:', e);
+  }
 }
 
 function cleanSensei(str) {
