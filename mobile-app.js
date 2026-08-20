@@ -4,6 +4,13 @@
  */
 
 import { INITIAL_PRACTICE_DATA, MASTER_REPERTOIRE } from './sample-data.js';
+import { 
+  initFirebaseSync, 
+  syncPracticeToCloud, 
+  deletePracticeFromCloud, 
+  syncRepertoireToCloud, 
+  deleteRepertoireFromCloud 
+} from './firebase-sync.js';
 
 // Storage Keys (v14 for Hard Cache Invalidation)
 const PERMANENT_STORAGE_KEY_PRACTICES = 'brass_band_calendar_practices_v14';
@@ -25,6 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initStorage();
   checkAdminMode();
   checkUrlDeepLinkImport();
+  setupMobileFirebaseCloudSync();
   setupMobileEventListeners();
   renderMobile();
 });
@@ -142,6 +150,33 @@ function initStorage() {
   sanitizeAllConductors(practices);
   sanitizeAllConductors(repertoire);
   saveToStorage();
+}
+
+function setupMobileFirebaseCloudSync() {
+  initFirebaseSync(
+    (cloudPractices) => {
+      if (cloudPractices && cloudPractices.length > 0) {
+        practices = cloudPractices;
+        sanitizeAllConductors(practices);
+        saveToStorage();
+        renderMobile();
+      }
+    },
+    (cloudRepertoire) => {
+      if (cloudRepertoire && cloudRepertoire.length > 0) {
+        repertoire = cloudRepertoire;
+        sanitizeAllConductors(repertoire);
+        saveToStorage();
+        renderMobile();
+      }
+    },
+    (isOnline, statusText) => {
+      const badge = document.getElementById('mAdminModeBadge');
+      if (badge && isOnline) {
+        badge.title = statusText;
+      }
+    }
+  );
 }
 
 function sanitizeAllConductors(target) {
@@ -699,6 +734,7 @@ function attachMobilePracticeCardEvents(container) {
       if (confirm(`練習予定「${p ? p.title : ''}」を削除してもよろしいですか？`)) {
         practices = practices.filter(item => item.id !== id);
         saveToStorage();
+        deletePracticeFromCloud(id);
         closeMobileSheet('mDetailModal');
         renderMobile();
       }
@@ -877,6 +913,7 @@ function handleMobilePracticeSubmit(e) {
   else practices.push(newPractice);
 
   saveToStorage();
+  syncPracticeToCloud(newPractice);
   closeMobileSheet('mPracticeModal');
   renderMobile();
 }
@@ -953,6 +990,7 @@ function handleMobileEditSongSubmit(e) {
   else repertoire.push(songObj);
 
   saveToStorage();
+  syncRepertoireToCloud(songObj);
   closeMobileSheet('mEditSongModal');
   renderMobile();
 }
