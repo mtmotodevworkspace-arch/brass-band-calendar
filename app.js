@@ -4,6 +4,7 @@
  */
 
 import { INITIAL_PRACTICE_DATA, MASTER_REPERTOIRE } from './sample-data.js';
+import { pushCentralCloudData } from './cloud-sync.js';
 import { 
   initFirebaseSync, 
   syncPracticeToCloud, 
@@ -229,7 +230,10 @@ function saveToStorage() {
   try {
     localStorage.setItem(PERMANENT_STORAGE_KEY_PRACTICES, JSON.stringify(practices));
     localStorage.setItem(PERMANENT_STORAGE_KEY_REPERTOIRE, JSON.stringify(repertoire));
-  } catch (e) {}
+    pushCentralCloudData(practices, repertoire);
+  } catch (e) {
+    console.warn('Save error:', e);
+  }
 }
 
 function bringToFront(el) {
