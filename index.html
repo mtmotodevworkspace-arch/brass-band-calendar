@@ -18,7 +18,7 @@
     }
   </script>
 
-  <link rel="stylesheet" href="style.css?v=20260820_v18">
+  <link rel="stylesheet" href="style.css?v=20260820_v19">
 </head>
 <body>
   <!-- Ambient Liquid Glass Glow Orbs -->
@@ -40,6 +40,9 @@
       <div class="header-actions">
         <button id="btnAdminToggle" class="btn-glass" title="タップして閲覧モード/管理者モード切り替え">
           <span>👁️ 閲覧専用モード (団員向け)</span>
+        </button>
+        <button id="btnSyncToMobile" class="btn-glass btn-primary-gold" title="PCの最新データをスマホへ引継ぎ・一括同期">
+          <span>⚡ スマホ画面へ最新データ同期 (QR/1タップ)</span>
         </button>
         <a href="mobile.html" class="btn-glass" style="color: var(--color-brass-light); border-color: var(--glass-border-gold);" title="スマホ専用版を開く">
           <span>📱 スマホ専用版へ</span>
@@ -478,6 +481,38 @@
     </div>
   </div>
 
+  <!-- Modal: Mobile Sync Modal -->
+  <div id="syncModal" class="modal-backdrop">
+    <div class="modal-content glass-panel" style="max-width: 520px; text-align: center;">
+      <div class="modal-header">
+        <h3>⚡ スマホ画面へPC最新データを同期</h3>
+        <button class="close-modal-btn" data-close="syncModal">&times;</button>
+      </div>
+      <div style="padding: 10px 0;">
+        <p style="color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 16px;">
+          PCで編集した最新データ（2026-08-23: 音出し〜合奏準備 / 21世紀のスキッツォイドマン等）をスマホ画面に完全反映・更新します。
+        </p>
+
+        <div style="background: rgba(255,255,255,0.05); padding: 16px; border-radius: 12px; margin-bottom: 16px;">
+          <h4 style="color: var(--color-brass-light); margin-bottom: 10px; font-size: 1rem;">📷 スマホのカメラで読み取って同期</h4>
+          <div id="syncQrCodeContainer" style="display: flex; justify-content: center; margin: 12px 0;">
+            <!-- QR Image injected via JS -->
+          </div>
+          <p style="font-size: 0.8rem; color: #a1a1aa;">スマホのカメラでかざすと自動的にスマホアプリがPCの最新状態に更新されます</p>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <a id="linkOpenMobileSync" href="#" target="_blank" class="btn-glass btn-primary-gold" style="width: 100%; text-decoration: none; text-align: center; justify-content: center; display: inline-flex; align-items: center; gap: 8px;">
+            📱 スマホ表示でこの最新データを開く
+          </a>
+          <button id="btnCopySyncUrl" class="btn-glass" style="width: 100%;">
+            🔗 スマホ同期URLをコピー (LINE等に貼り付け)
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal 5: Backup & Data Management -->
   <div id="backupModal" class="modal-backdrop">
     <div class="modal-content glass-panel">
@@ -508,6 +543,6 @@
   </div>
 
   <!-- Main JavaScript App Loader with Cache-Buster v13 -->
-  <script type="module" src="app.js?v=20260820_v18"></script>
+  <script type="module" src="app.js?v=20260820_v19"></script>
 </body>
 </html>

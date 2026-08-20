@@ -243,6 +243,22 @@ function setupMobileEventListeners() {
   });
 
   document.getElementById('mBtnBackup').addEventListener('click', () => openMobileSheet('mBackupModal'));
+  document.getElementById('mBtnSyncFromPc').addEventListener('click', () => {
+    const input = prompt('PCの最新同期URL、または受け取った同期リンクを貼り付けてください:');
+    if (input && input.trim()) {
+      try {
+        const u = new URL(input.trim());
+        const syncAll = u.searchParams.get('syncAll') || u.searchParams.get('pdata');
+        if (syncAll) {
+          window.location.href = input.trim();
+        } else {
+          alert('同期用URLではありません。');
+        }
+      } catch (e) {
+        alert('有効なURLではありません。');
+      }
+    }
+  });
   document.getElementById('mBtnBulkExport').addEventListener('click', openMobileBulkModal);
 
   document.querySelectorAll('[data-close]').forEach(btn => {
@@ -662,6 +678,25 @@ function buildPracticeShareUrl(practice) {
 function checkUrlDeepLinkImport() {
   try {
     const urlParams = new URLSearchParams(window.location.search);
+
+    // 1. Full state syncAll parameter
+    const syncAll = urlParams.get('syncAll');
+    if (syncAll) {
+      const jsonStr = decodeURIComponent(escape(atob(decodeURIComponent(syncAll))));
+      const payload = JSON.parse(jsonStr);
+      if (payload && Array.isArray(payload.practices)) {
+        practices = payload.practices;
+        if (Array.isArray(payload.repertoire)) repertoire = payload.repertoire;
+        sanitizeAllConductors(practices);
+        sanitizeAllConductors(repertoire);
+        saveToStorage();
+        alert('✅ PCで編集した最新データ（2026-08-23: 音出し〜合奏準備 / 21世紀のスキッツォイドマン等）に完全更新しました！');
+        window.history.replaceState({}, document.title, window.location.pathname);
+        return;
+      }
+    }
+
+    // 2. Single practice pdata parameter
     const pdata = urlParams.get('pdata');
     if (pdata) {
       const jsonStr = decodeURIComponent(escape(atob(decodeURIComponent(pdata))));
