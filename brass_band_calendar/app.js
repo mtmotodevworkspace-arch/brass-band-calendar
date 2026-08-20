@@ -26,6 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
   hardPurgeSenseiFromLocalStorage();
   initStorage();
   checkAdminMode();
+  checkUrlDeepLinkImport();
   setupEventListeners();
   setupZIndexLayerManagement();
   render();
@@ -1254,18 +1255,60 @@ function openExportModal(id) {
   openModal('exportModal');
 }
 
+function buildPracticeShareUrl(practice) {
+  try {
+    const jsonStr = JSON.stringify(practice);
+    const encoded = btoa(unescape(encodeURIComponent(jsonStr)));
+    const origin = window.location.origin;
+    let path = window.location.pathname;
+    if (path.endsWith('index.html')) path = path.substring(0, path.length - 'index.html'.length);
+    if (!path.endsWith('/')) path += '/';
+    return `${origin}${path}mobile.html?pdata=${encodeURIComponent(encoded)}`;
+  } catch (e) {
+    return window.location.href;
+  }
+}
+
+function checkUrlDeepLinkImport() {
+  try {
+    const urlParams = new URLSearchParams(window.location.search);
+    const pdata = urlParams.get('pdata');
+    if (pdata) {
+      const jsonStr = decodeURIComponent(escape(atob(decodeURIComponent(pdata))));
+      const sharedPractice = JSON.parse(jsonStr);
+      if (sharedPractice && sharedPractice.id && sharedPractice.date) {
+        const idx = practices.findIndex(p => p.id === sharedPractice.id || p.date === sharedPractice.date);
+        if (idx >= 0) {
+          practices[idx] = sharedPractice;
+        } else {
+          practices.push(sharedPractice);
+        }
+        sanitizeAllConductors(practices);
+        saveToStorage();
+        
+        currentDate = new Date(sharedPractice.date);
+        selectedDateForMobileSheet = sharedPractice.date;
+      }
+    }
+  } catch (e) {
+    console.error('Deep link import error:', e);
+  }
+}
+
 function shareToLine() {
   if (!activePracticeForExport) return;
   const p = activePracticeForExport;
-  let text = `🎵【吹奏楽 練習連絡】\n📌 ${cleanSensei(p.title)}\n📅 ${p.date}\n📍 場所: ${p.locationName || '未定'}\n👨‍🏫 指揮: ${cleanSensei(p.conductors) || '未定'}\n📱 Webアプリ:\n${window.location.href}`;
+  const shareUrl = buildPracticeShareUrl(p);
+  let text = `🎵【吹奏楽 練習連絡】\n📌 ${cleanSensei(p.title)}\n📅 日時: ${p.date} (${p.category})\n📍 場所: ${p.locationName || '未定'}\n👨‍🏫 指揮: ${cleanSensei(p.conductors) || '未定'}\n\n📱 タップして最新の練習スケジュール・詳細を確認:\n${shareUrl}`;
   window.open(`https://line.me/R/msg/text/?${encodeURIComponent(text)}`, '_blank');
 }
 
 function copyLineTextToClipboard() {
   if (!activePracticeForExport) return;
   const p = activePracticeForExport;
-  let text = `🎵【吹奏楽 練習連絡】\n📌 ${cleanSensei(p.title)}\n📅 ${p.date}\n📍 場所: ${p.locationName || '未定'}\n👨‍🏫 指揮: ${cleanSensei(p.conductors) || '未定'}\n📱 Webアプリ:\n${window.location.href}`;
-  navigator.clipboard.writeText(text).then(() => alert('テキストをコピーしました'));
+  const shareUrl = buildPracticeShareUrl(p);
+  let text = `🎵【吹奏楽 練習連絡】\n📌 ${cleanSensei(p.title)}\n📅 日時: ${p.date} (${p.category})\n📍 場所: ${p.locationName || '未定'}\n👨‍🏫 指揮: ${cleanSensei(p.conductors) || '未定'}\n\n📱 タップして最新の練習スケジュール・詳細を確認:\n${shareUrl}`;
+  navigator.clipboard.writeText(text).then(() => alert('一括共有テキスト（最新データURL付き）をコピーしました'));
 }
 
 function downloadIcsFile() {
